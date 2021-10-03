@@ -2,6 +2,63 @@ from matplotlib import pyplot as plt
 import control as co
 import sympy as sp
 import math
+from sympy import *
+
+def ruth(polinomio):
+
+	from matplotlib import pyplot as plt
+	import control as co
+	import sympy as sp
+	import math
+	from tbcontrol.symbolic import routh
+	from sympy.solvers.inequalities import solve_poly_inequalities
+	from sympy.solvers.inequalities import solve_rational_inequalities
+	
+
+	s = sp.Symbol('s')
+	k = sp.Symbol('k')
+	K = sp.Symbol('K')
+	p=sp.Poly(polinomio.replace("^","**"),s)
+	init_printing()
+	print("La tabla de Routh es para el polinomio "+polinomio+" es:\n")
+	table = routh(p)
+	pprint(table)
+	
+
+	if 'K' in polinomio:
+		print("\nEstabilidad:")
+		polys = []
+		for i in range(table.rows):
+			val = table[i,0]
+			if not val.is_Number:
+				polys.append(val.as_numer_denom()[0].as_poly())
+		
+		query = []
+		for i in polys:
+			ineq = (i,Poly(1,K),)
+			all=(ineq,">")
+			query.append(all)
+			res=solve_rational_inequalities([[all]])
+			txt=pretty(res)
+			print("* Para inecuación ["+pretty(i.as_expr())+" > 0], intervalo",pretty(res))
+			
+		res=solve_rational_inequalities([query])
+		print("** Sistema estable para K en intervalo:", pretty(res))
+	else:
+		changes = 0
+		last_sign = table[0,0]
+		for i in range(table.rows):
+			val = table[i,0]
+			if last_sign > 0 and val<0 or last_sign <0 and val > 0:
+				changes = changes + 1 
+				last_sign=val
+		
+		if changes==0:
+			print("\nEl sistema es estable")
+		else:
+			print("\nEl sistema es inestable, tiene {:d} polo/s en el s/p derecho y {:d} en s/p izquierdo".format(changes, table.rows-1-changes))
+			
+
 
 def compute_controller(planta, s_star, cero):
 
@@ -75,4 +132,4 @@ def compute_controller(planta, s_star, cero):
 	  print("---")
 	  print("El controlador es: C(s)={}".format(ctrl))
 
-compute_controller("1/(s+5)/(s+8)","-4+8j","-6")
+ruth("-s^3+ s^2+3*s+1")
