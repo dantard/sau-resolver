@@ -7,6 +7,19 @@ import control as co
 import sympy as sp
 import math
 from sympy import *
+import builtins as __builtin__
+
+verbose = True
+
+
+def set_verbose(val):
+    global verbose
+    verbose = val
+
+
+def print(*args, **kwargs):
+    if verbose:
+        __builtin__.print(*args,**kwargs)
 
 
 def text_to_tf(fdt):
@@ -37,10 +50,11 @@ def asynt(poly):
             sum += sp.re(i).evalf()
         poc = sum/numb_asynt
         print("Punto de contacto: s={:.3g}".format(poc))
-        print("Ángulo/s: ", end="")
+        angles = []
         for i in range(numb_asynt):
-            print(180*(2*i+1)/numb_asynt, "",end="")
-        print("")
+            angles.append(180*(2*i+1)/numb_asynt)
+        print("Angles: {}".format(angles))
+        return numb_asynt, poc, angles
 
 
 def rupture_points(poly):
@@ -61,7 +75,7 @@ def rupture_points(poly):
     f = num*diff(den) - diff(num)*den
     print("N'D - ND' = 0 -> {} ".format(f))
     r = solve(f)
-    print("Raíces -> {} -> {}".format(r, [i.evalf() for i in r]))
+    print("Raíces -> {} -> {}".format(r, [i.evalf(3) for i in r]))
     for v in r:
         if sp.im(v).evalf() == 0:
             count = len([i for i in real_parts if i > v.evalf()])
@@ -69,6 +83,8 @@ def rupture_points(poly):
                 print("Punto de ruptura en s={:.3g} NO válido".format(v.evalf()))
             else:
                 print("Punto de ruptura en s={:.3g} válido".format(v.evalf()))
+        else:
+            print("Punto de ruptura en s={} NO válido".format(v.evalf(3)))
 
     return r
 
@@ -86,6 +102,8 @@ def routh(polinomio):
     table = routh(p)
     pprint(table)
 
+    res = []
+    changes = -1
     if 'K' in polinomio:
         print("\nEstabilidad:")
         polys = []
@@ -119,8 +137,8 @@ def routh(polinomio):
         else:
             print(
                 "\nEl sistema es inestable, tiene {:d} polo/s en el s/p derecho y {:d} en s/p izquierdo".format(changes,
-                                                                                                                table.rows - 1 - changes))
-
+                                                                                              table.rows - 1 - changes))
+        return table, res, changes
 
 def compute_controller(planta, s_star, cero):
     if (cero != ""):
@@ -233,11 +251,16 @@ def root_locus_angles(fdt):
         print("No hay polos o ceros con parte imaginaria no nula")
 
 
-def compensate_error(fdt, obj=None, pole=None, s_star=None):
+def compensate_error(fdt, obj=None, pole=None, s_star=None, verbose=True):
+
+    def print(*args, **kwargs):
+        if verbose:
+            __builtin__.print(*args, **kwargs)
+
     fdt = text_to_tf(fdt)
     num = fdt.num[0][0]
     den = fdt.den[0][0]
-    print(fdt.den[0][0])
+
     fdt_type = 0
     while den[len(den)-1] == 0:
         fdt_type += 1
@@ -264,33 +287,33 @@ def compensate_error(fdt, obj=None, pole=None, s_star=None):
                 print("Anulando e_ramp(oo)")
                 print("Acotando e_parab(oo) a {:.2g}".format(obj))
 
-            z = -1 / gain / obj
-            ctrl = co.tf([1, -z], [1, 0])
+            z = 1 / gain / obj
+            ctrl = co.tf([1, z], [1, 0])
         else:
             pole = -float(pole)
             print("** Calculando RED de RETARDO (RR)")
             if fdt_type == 0:
-                z = -(pole-obj*pole)/obj/gain
+                z = (pole-obj*pole)/obj/gain
                 print("Acotando e_step(oo) a {:.2g}".format(obj))
             elif fdt_type == 1:
                 print("Acotando e_ramp(oo) a {:.2g}".format(obj))
-                z = -pole / gain / obj
+                z = pole / gain / obj
             elif fdt_type == 2:
                 print("Acotando e_parab(oo) a {:.2g}".format(obj))
-                z = -pole / gain / obj
+                z = pole / gain / obj
 
-            ctrl = co.tf([1, -z], [1, obj])
+            ctrl = co.tf([1, z], [1, pole])
             print("Posición del polo: s={:.2g}".format(-pole))
 
-        print("Posición del cero: s={:.2g}".format(z))
+        print("Posición del cero: s={:.2g}".format(-z))
 
     k_c = 1
     if s_star is not None:
         s_star = complex(s_star)
         if pole is None:
-            k_c = abs(s_star)/abs(s_star - z)
+            k_c = abs(s_star)/abs(s_star + z)
         else:
-            k_c = abs(s_star - z)/abs(s_star + pole)
+            k_c = abs(s_star + pole)/abs(s_star + z)
         print("K_adj = {:.5g}".format(k_c))
 
     print("Controlador C(s)={}".format(k_c*ctrl))
@@ -327,7 +350,7 @@ def root_locus(fdt):
         real_part.append(pol.real)
 
     ax =plt.axes()
-    ax.set_xlim(min(real_part)-math.fabs(min(real_part)*2), max(real_part)+math.fabs(max(real_part)*2))
+   # ax.set_xlim(min(real_part)-math.fabs(min(real_part)*2), max(real_part)+math.fabs(max(real_part)*2))
 
     plt.show()
 
@@ -359,7 +382,9 @@ def solve_equation_system(inp, vars, eqs):
 
 
 if True:
-
+	
+    set_verbose(True)
+    
     def check_error_one_param():
         if len(sys.argv) < 3:
             print("Use: {} {} <fdt>".format(sys.argv[0], sys.argv[1]))
