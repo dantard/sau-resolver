@@ -32,6 +32,7 @@ def text_to_tf(fdt):
 
 
 def asynt(poly):
+    poly = poly.replace("^","**")
     poly = sp.parse_expr(poly)
     num = poly.as_numer_denom()[0]
     den = poly.as_numer_denom()[1]
@@ -58,7 +59,7 @@ def asynt(poly):
 
 
 def rupture_points(poly):
-    poly=sp.parse_expr(poly)
+    poly=sp.parse_expr(poly.replace("^","**"))
     num=poly.as_numer_denom()[0]
     den = poly.as_numer_denom()[1]
 
@@ -75,7 +76,9 @@ def rupture_points(poly):
     f = num*diff(den) - diff(num)*den
     print("N'D - ND' = 0 -> {} ".format(f))
     r = solve(f)
-    print("Raíces -> {} -> {}".format(r, [i.evalf(3) for i in r]))
+    print("Raíces -> {}".format([i.evalf(3) for i in r]))
+    #pprint(r)
+
     for v in r:
         if sp.im(v).evalf() == 0:
             count = len([i for i in real_parts if i > v.evalf()])
@@ -92,6 +95,9 @@ def rupture_points(poly):
 def routh(polinomio):
     from tbcontrol.symbolic import routh
     from sympy.solvers.inequalities import solve_rational_inequalities
+
+    if "/" in polinomio:
+        polinomio = polinomio.split("/")[1]
 
     s = sp.Symbol('s')
     k = sp.Symbol('k')
@@ -140,8 +146,8 @@ def routh(polinomio):
                                                                                               table.rows - 1 - changes))
         return table, res, changes
 
-def compute_controller(planta, s_star, cero):
-    if (cero != ""):
+def compute_controller(planta, s_star, cero=None):
+    if cero is not None and cero !="0":
         print("Calculando una RED DE ADELANTO (RA) con cero en s={}".format(cero))
         planta = "(s-{})*(".format(cero) + planta + ")"
         is_pd = False
@@ -210,7 +216,7 @@ def compute_controller(planta, s_star, cero):
         print("La posición del " + looking_for + " es {:.2f} y la ganancia {:.2f}".format(sing_pos, gain))
         print("---")
         print("El controlador es: C(s)={}".format(ctrl))
-    return ctrl
+    #return ctrl
 
 
 def step_response(fdt):
@@ -381,7 +387,7 @@ def solve_equation_system(inp, vars, eqs):
         print("")
 
 
-if True:
+if False:
 	
     set_verbose(True)
     
