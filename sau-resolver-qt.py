@@ -7,6 +7,7 @@ from PySide6.QtGui import QFontDatabase
 import resolver
 import io
 from contextlib import redirect_stdout
+import configparser
 
 class Tab():
     def __init__(self):
@@ -45,6 +46,18 @@ class Tab():
         self.append(edit, name)
 
 
+# CONFIG
+opt_fdt_control = "1/(s+2)/(s+3)/(s+5)"
+
+config = configparser.RawConfigParser()
+config.read('sau-resolver-qt.ini')
+try:
+    opt_fdt_control = config.get("Config", "opt_fdt_control")
+except:
+    pass
+#####
+
+
 class Form(QDialog):
 
     def __init__(self, parent=None):
@@ -72,7 +85,7 @@ class Form(QDialog):
         self.tab_routh.add_text_edit("Resultado")
 
         self.tab_control = Tab()
-        self.tab_control.add_line_edit("FdT", "1/(s^3+3*s^2+2*s+1)")
+        self.tab_control.add_line_edit("FdT", opt_fdt_control)
         self.tab_control.add_line_edit("s*", "-4+8j")
         self.tab_control.add_line_edit("Cero", "0")
         self.tab_control.add_text_edit("Resultado")
@@ -149,7 +162,16 @@ class Form(QDialog):
                 resolver.solve_equation_system(self.tab_systems.get("Entrada"), vars, eqs)
 
                 self.tab_systems.set("Resultado", f.getvalue())
-        #print(out)
+
+        # Save Config
+        try:
+            config.add_section("Config")
+        except:
+            pass
+        config.set("Config", "opt_fdt_control", self.tab_control.get("FdT"))
+        with open('sau-resolver-qt.ini', 'w') as configfile:
+            config.write(configfile)
+
 
 if __name__ == '__main__':
     # Create the Qt Application

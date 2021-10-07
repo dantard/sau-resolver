@@ -146,6 +146,7 @@ def routh(polinomio):
                                                                                               table.rows - 1 - changes))
         return table, res, changes
 
+
 def compute_controller(planta, s_star, cero=None):
     if cero is not None and cero !="0":
         print("Calculando una RED DE ADELANTO (RA) con cero en s={}".format(cero))
@@ -162,11 +163,19 @@ def compute_controller(planta, s_star, cero=None):
     expr = sp.parse_expr(planta.replace("^", "**"))
     num = expr.as_numer_denom()[0]
     den = expr.as_numer_denom()[1]
-    num = float(num) if num.is_Number else [float(x) for x in sp.poly(num).all_coeffs()]
-    den = float(den) if den.is_Number else [float(x) for x in sp.poly(den).all_coeffs()]
+    num = [float(num)] if num.is_Number else [float(x) for x in sp.poly(num).all_coeffs()]
+    den = [float(den)] if den.is_Number else [float(x) for x in sp.poly(den).all_coeffs()]
+
     tf_ctrl = co.tf(num, den)
     poles = co.pole(tf_ctrl)
     zeros = co.zero(tf_ctrl)
+    mu = co.dcgain(tf_ctrl)
+
+    for i in poles:
+        mu = -mu * i
+    for i in zeros:
+        mu = -mu/i
+
     s_star = complex(s_star)
 
     angle_poles = 0
@@ -200,18 +209,21 @@ def compute_controller(planta, s_star, cero=None):
     else:
         needed = math.fabs(needed)
         if needed > 90:
-            delta_x = s_star.imag / math.tan(math.pi * (180 - needed) / 180)
+            delta_x = -s_star.imag / math.tan(math.pi * (180 - needed) / 180)
         else:
             delta_x = s_star.imag / math.tan(math.pi * needed / 180)
 
         sing_pos = s_star.real - delta_x
 
         if is_pd:
-            gain = mod_poles / mod_zeros / abs(s_star - sing_pos)
+            gain = mod_poles / mod_zeros / abs(s_star - sing_pos) / mu
             ctrl = gain * co.tf([1, -sing_pos], [1])
         else:
-            gain = mod_poles * abs(s_star - sing_pos) / mod_zeros
+            gain = mod_poles * abs(s_star - sing_pos) / mod_zeros / mu
             ctrl = gain * co.tf([1, -float(cero)], [1, -sing_pos])
+
+        #gain = gain /dcgain
+
         print("La posición del " + looking_for + " es {:.2f} y la ganancia {:.2f}".format(sing_pos, gain))
         print("---")
         print("C(s)=\n{}".format(ctrl))
@@ -358,7 +370,7 @@ def root_locus(fdt):
         plt.scatter(pol.real, pol.imag, marker="x", color='red')
         real_part.append(pol.real)
 
-    ax =plt.axes()
+   # ax =plt.axes()
    # ax.set_xlim(min(real_part)-math.fabs(min(real_part)*2), max(real_part)+math.fabs(max(real_part)*2))
 
     plt.show()
