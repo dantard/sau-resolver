@@ -212,10 +212,9 @@ def compute_controller(planta, s_star, cero=None):
         else:
             gain = mod_poles * abs(s_star - sing_pos) / mod_zeros
             ctrl = gain * co.tf([1, -float(cero)], [1, -sing_pos])
-
         print("La posición del " + looking_for + " es {:.2f} y la ganancia {:.2f}".format(sing_pos, gain))
         print("---")
-        print("El controlador es: C(s)={}".format(ctrl))
+        print("C(s)=\n{}".format(ctrl))
     #return ctrl
 
 
@@ -259,10 +258,10 @@ def root_locus_angles(fdt):
 
 def compensate_error(fdt, obj=None, pole=None, s_star=None, verbose=True):
 
-    def print(*args, **kwargs):
-        if verbose:
-            __builtin__.print(*args, **kwargs)
-
+#    def print(*args, **kwargs):
+#        if verbose:
+#            __builtin__.print(*args, **kwargs)
+    print("Situación actual: ", end="")
     fdt = text_to_tf(fdt)
     num = fdt.num[0][0]
     den = fdt.den[0][0]
@@ -281,37 +280,41 @@ def compensate_error(fdt, obj=None, pole=None, s_star=None, verbose=True):
     elif fdt_type == 2:
         error = 1 / gain
         print("e_step(oo)=0, e_ramp(oo)=0, e_parab(oo)={:.2g}".format(error))
+    print("---")
     if obj is not None:
         obj = float(obj)
 
         if pole is None:
-            print("** Calculando PROPORCIONAL INTEGRAL (PI)")
+            print("Calculando PROPORCIONAL INTEGRAL (PI)")
             if fdt_type == 0:
-                print("Anulando e_step(oo)")
-                print("Acotando e_ramp(oo) a {:.2g}".format(obj))
+                print("- Anulando e_step(oo)")
+                print("- Acotando e_ramp(oo) a {:.2g}".format(obj))
             if fdt_type == 1:
-                print("Anulando e_ramp(oo)")
-                print("Acotando e_parab(oo) a {:.2g}".format(obj))
+                print("- Anulando e_ramp(oo)")
+                print("- Acotando e_parab(oo) a {:.2g}".format(obj))
 
             z = 1 / gain / obj
             ctrl = co.tf([1, z], [1, 0])
         else:
             pole = -float(pole)
-            print("** Calculando RED de RETARDO (RR)")
+            print("Calculando RED de RETARDO (RR)")
             if fdt_type == 0:
                 z = (pole-obj*pole)/obj/gain
-                print("Acotando e_step(oo) a {:.2g}".format(obj))
+                print("- Acotando e_step(oo) a {:.2g}".format(obj))
             elif fdt_type == 1:
-                print("Acotando e_ramp(oo) a {:.2g}".format(obj))
+                print("- Acotando e_ramp(oo) a {:.2g}".format(obj))
                 z = pole / gain / obj
             elif fdt_type == 2:
-                print("Acotando e_parab(oo) a {:.2g}".format(obj))
+                print("- Acotando e_parab(oo) a {:.2g}".format(obj))
                 z = pole / gain / obj
 
             ctrl = co.tf([1, z], [1, pole])
+            print("---")
             print("Posición del polo: s={:.2g}".format(-pole))
 
+        print("---")
         print("Posición del cero: s={:.2g}".format(-z))
+        print("---")
 
     k_c = 1
     if s_star is not None:
@@ -321,8 +324,8 @@ def compensate_error(fdt, obj=None, pole=None, s_star=None, verbose=True):
         else:
             k_c = abs(s_star + pole)/abs(s_star + z)
         print("K_adj = {:.5g}".format(k_c))
-
-    print("Controlador C(s)={}".format(k_c*ctrl))
+        print("---")
+    print("C(s)=\n{}".format(k_c*ctrl))
 
     return ctrl
 
@@ -368,20 +371,26 @@ def solve_equation_system(inp, vars, eqs):
     inp = Symbol(inp)
 
     for i in eqs:
+        i = i.replace(" ", "")
         if not i.endswith("=0"):
             print("*** ATENCIÓN: eq. {} no termina con '=0'".format(i))
-        eq.append(i.replace("=0", ""))
+        eq.append(i.replace("=0", "").replace("I","_i_"))
+
 
     if len(vars) != len(eq):
         print("*** ERROR: Número de variables distinto de número de ecuaciones")
     else:
         for i in vars:
+            i=i.replace("I","_i_")
             x.append(Symbol(i))
     results = solve(eq, x)
     init_printing()
-    for i in x:
-        pprint("{}(s)/{}(s)=".format(i, inp))
-        pprint(simplify(results[i]) / inp)
+
+    resu = [(k, v) for k, v in results.items()]
+    for i in resu:
+        k,v = i
+        pprint("{}(s)/{}(s)=".format(str(k).replace("_i_","I"), inp))
+        pprint(simplify(v) / inp)
         print("")
         print("---")
         print("")

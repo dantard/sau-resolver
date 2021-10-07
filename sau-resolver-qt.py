@@ -1,12 +1,48 @@
+#!/usr/bin/env python
+
 import sys
 from PySide6.QtWidgets import (QLineEdit, QPushButton, QApplication,
-    QVBoxLayout, QDialog, QTextEdit, QTabWidget, QWidget)
+    QVBoxLayout, QDialog, QTextEdit, QTabWidget, QWidget, QLabel, QHBoxLayout, QFormLayout)
 from PySide6.QtGui import QFontDatabase
 import resolver
 import io
 from contextlib import redirect_stdout
 
+class Tab():
+    def __init__(self):
+        self.layout = QVBoxLayout()
+        self.layout2 = QFormLayout()
+        self.tab = QWidget()
+        self.widgets = []
+        self.dic = {}
+        self.tab.setLayout(self.layout)
+        self.my_font = QFontDatabase.systemFont(QFontDatabase.FixedFont)
 
+
+    def append(self, widget, name):
+        widget.setFont(self.my_font)
+        self.layout.addLayout(self.layout2)
+        self.layout2.addRow(QLabel(name), widget)
+        #self.layout2.addWidget(widget)
+        self.widgets.append(widget)
+        self.dic[name] = widget
+
+    def get(self, name):
+        res = self.dic[name]
+        return res.text() if res.text() != "" else None
+
+    def set(self, name, value):
+        res = self.dic[name]
+        res.setText(value)
+
+    def add_line_edit(self, name="test", text=""):
+        edit = QLineEdit(text)
+        self.append(edit, name)
+
+    def add_text_edit(self, name="test", text=""):
+        edit = QTextEdit(text)
+        edit.setReadOnly(True)
+        self.append(edit, name)
 
 
 class Form(QDialog):
@@ -14,60 +50,62 @@ class Form(QDialog):
     def __init__(self, parent=None):
         super(Form, self).__init__(parent)
         # Create widgets
-        self.setFixedSize(800,600)
+        self.setMinimumSize(800,600)
+        #self.setFixedSize(800, 600)
 
         self.tab = QTabWidget()
-        self.edit3 = QLineEdit("-4+8j")
-        self.edit_zero = QLineEdit("0")
-        self.edit4 = QTextEdit("")
-        self.edit5 = QTextEdit("")
-
-        self.edit = QLineEdit("1/(s^3+s^2+3*s+2)")
-        self.edit2 = QTextEdit("")
         self.button1 = QPushButton("Compute")
 
         # Create layout and add widgets
         layoutmain = QVBoxLayout()
-        layoutmain.addWidget(self.edit)
         layoutmain.addWidget(self.tab)
         layoutmain.addWidget(self.button1)
 
-        self.tab0 = QWidget()
-        layout = QVBoxLayout()
-        self.tab0.setLayout(layout)
+        self.tab_root_locus = Tab()
+        self.tab_root_locus.add_line_edit("FdT", "1/(s^3+3*s^2+2*s+1)")
 
-        self.tab1 = QWidget()
-        layout = QVBoxLayout()
-        self.tab1.setLayout(layout)
+        self.tab_step = Tab()
+        self.tab_step.add_line_edit("FdT", "1/(s^3+3*s^2+2*s+1)")
 
-        self.tab2 = QWidget()
-        layout = QVBoxLayout()
-        layout.addWidget(self.edit2)
-        self.tab2.setLayout(layout)
+        self.tab_routh = Tab()
+        self.tab_routh.add_line_edit("FdT", "1/(s^3+3*s^2+2*s+1)")
+        self.tab_routh.add_text_edit("Resultado")
 
-        self.tab3 = QWidget()
-        layout = QVBoxLayout()
-        layout.addWidget(self.edit3)
-        layout.addWidget(self.edit_zero)
-        layout.addWidget(self.edit4)
-        self.tab3.setLayout(layout)
+        self.tab_control = Tab()
+        self.tab_control.add_line_edit("FdT", "1/(s^3+3*s^2+2*s+1)")
+        self.tab_control.add_line_edit("s*", "-4+8j")
+        self.tab_control.add_line_edit("Cero", "0")
+        self.tab_control.add_text_edit("Resultado")
 
-        self.tab4 = QWidget()
-        layout = QVBoxLayout()
-        layout.addWidget(self.edit5)
-        self.tab4.setLayout(layout)
+        self.tab_root_locus_all = Tab()
+        self.tab_root_locus_all.add_line_edit("FdT", "1/(s^3+3*s^2+2*s+1)")
+        self.tab_root_locus_all.add_text_edit("Resultado")
 
-        self.tab.addTab(self.tab0, "Root Locus")
-        self.tab.addTab(self.tab1, "Step")
-        self.tab.addTab(self.tab2, "Routh")
-        self.tab.addTab(self.tab3, "Control")
-        self.tab.addTab(self.tab4, "Root Locus all")
+        self.tab_error = Tab()
+        self.tab_error.add_line_edit("FdT", "1/(s^3+3*s^2+2*s+1)")
+        self.tab_error.add_line_edit("Objetivo de error", "0.1")
+        self.tab_error.add_line_edit("Polo")
+        self.tab_error.add_line_edit("s*")
+        self.tab_error.add_text_edit("Resultado")
 
-        my_font = QFontDatabase.systemFont(QFontDatabase.FixedFont)
-        #my_font = QFont("Courier", 12)
-        self.edit2.setFont(my_font)
-        self.edit4.setFont(my_font)
-        self.edit5.setFont(my_font)
+        self.tab_systems = Tab()
+        self.tab_systems.add_line_edit("Entrada", "Vr")
+        self.tab_systems.add_line_edit("Variables", "T,Ve,I,W")
+        self.tab_systems.add_line_edit("eq1", "Vr-R*I-L*s*I-Ve=0")
+        self.tab_systems.add_line_edit("eq2", "T-J*s*W-B*W=0")
+        self.tab_systems.add_line_edit("eq3", "Ve-Ke*W=0")
+        self.tab_systems.add_line_edit("eq4", "T-Ki*I=0")
+        self.tab_systems.add_line_edit("eq5")
+        self.tab_systems.add_text_edit("Resultado")
+
+
+        self.tab.addTab(self.tab_systems.tab, "Sistemas")#0
+        self.tab.addTab(self.tab_step.tab, "Escalón")#1
+        self.tab.addTab(self.tab_routh.tab, "Routh")#2
+        self.tab.addTab(self.tab_root_locus.tab, "LdlR")#3
+        self.tab.addTab(self.tab_root_locus_all.tab, "LdlR 2")#4
+        self.tab.addTab(self.tab_control.tab, "Control")#5
+        self.tab.addTab(self.tab_error.tab, "Error")#6
 
         # Set dialog layout
         self.setLayout(layoutmain)
@@ -79,22 +117,38 @@ class Form(QDialog):
         f = io.StringIO()
         with redirect_stdout(f):
 
-            if self.tab.currentIndex() == 0:
-                resolver.root_locus(self.edit.text())
+            if self.tab.currentIndex() == 3:
+                resolver.root_locus(self.tab_root_locus.get("FdT"))
             elif self.tab.currentIndex() == 1:
-                resolver.step_response(self.edit.text())
+                resolver.step_response(self.tab_step.get("FdT"))
             elif self.tab.currentIndex() == 2:
-                resolver.routh(self.edit.text())
-                self.edit2.setText(f.getvalue())
-            elif self.tab.currentIndex() == 3:
-                resolver.compute_controller(self.edit.text(), self.edit3.text(), self.edit_zero.text())
-                self.edit4.setText(f.getvalue())
+                resolver.routh(self.tab_routh.get("FdT"))
+                self.tab_routh.set("Resultado", f.getvalue())
+            elif self.tab.currentIndex() == 5:
+                resolver.compute_controller(self.tab_control.get("FdT"), self.tab_control.get("s*"), self.tab_control.get("Cero"))
+                self.tab_control.set("Resultado", f.getvalue())
             elif self.tab.currentIndex() == 4:
-                resolver.root_locus_angles(self.edit.text())
-                resolver.rupture_points(self.edit.text())
+                resolver.root_locus_angles(self.tab_root_locus_all.get("FdT"))
+                resolver.rupture_points(self.tab_root_locus_all.get("FdT"))
                 print("---")
-                resolver.asynt(self.edit.text())
-                self.edit5.setText(f.getvalue())
+                resolver.asynt(self.tab_root_locus_all.get("FdT"))
+                self.tab_root_locus_all.set("Resultado", f.getvalue())
+            elif self.tab.currentIndex() == 6:
+                resolver.compensate_error(self.tab_error.get("FdT"),
+                                          self.tab_error.get("Objetivo de error"),
+                                          self.tab_error.get("Polo"),
+                                          self.tab_error.get("s*"))
+                self.tab_error.set("Resultado", f.getvalue())
+            elif self.tab.currentIndex() == 0:
+                eqs = []
+                vars = self.tab_systems.get("Variables").split(",")
+                for i in range(5):
+                    eq = self.tab_systems.get("eq" + str(i + 1))
+                    if eq is not None:
+                        eqs.append(eq)
+                resolver.solve_equation_system(self.tab_systems.get("Entrada"), vars, eqs)
+
+                self.tab_systems.set("Resultado", f.getvalue())
         #print(out)
 
 if __name__ == '__main__':
