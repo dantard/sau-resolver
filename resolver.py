@@ -118,6 +118,7 @@ def routh(polinomio):
             if not val.is_Number:
                 polys.append(val.as_numer_denom()[0].as_poly())
 
+        j=1
         query = []
         for i in polys:
             ineq = (i, Poly(1, K),)
@@ -125,10 +126,17 @@ def routh(polinomio):
             query.append(all)
             res = solve_rational_inequalities([[all]])
             txt = pretty(res)
-            print("* Para inecuación [" + pretty(i.as_expr()) + " > 0], intervalo", pretty(res))
+            print("Para inecuación ({}):\n".format(j))
+            pprint(i.as_expr())
+            print("")
+            print("intervalo:\n")
+            pprint(res)
+            print("\n")
+            j=j+1
 
         res = solve_rational_inequalities([query])
-        print("** Sistema estable para K en intervalo:", pretty(res))
+        print("Globalmente el sistema es estable para K en intervalo:\n")
+        pprint(res)
     else:
         changes = 0
         last_sign = table[0, 0]
@@ -156,7 +164,7 @@ def compute_controller(planta, s_star, cero=None):
         print("Calculando un PROPORCIONAL DERIVATIVO (PD)")
         is_pd = True
 
-    print("---")
+    print("")
 
     looking_for = "cero" if is_pd else "polo"
 
@@ -197,9 +205,9 @@ def compute_controller(planta, s_star, cero=None):
         mod_zeros = mod_zeros * mod
 
     needed = (-180 - angle_zeros + angle_poles)
-    print("---")
+    print("")
     print("Falta fase de {:.2f} grados".format(needed))
-    print("---")
+    print("")
 
     impossible = (is_pd and (needed > 180 or needed < 0)) or \
                         (not is_pd and (needed < -180 or needed > 0))
@@ -225,7 +233,7 @@ def compute_controller(planta, s_star, cero=None):
         #gain = gain /dcgain
 
         print("La posición del " + looking_for + " es {:.2f} y la ganancia {:.2f}".format(sing_pos, gain))
-        print("---")
+        print("")
         print("C(s)=\n{}".format(ctrl))
     #return ctrl
 
@@ -252,7 +260,7 @@ def root_locus_angles(fdt):
             print("Polo en s={:.2f}".format(p), "ángulo: {:.2f} grados".format(angle / math.pi * 180))
             there_are_angles = True
 
-    there_are_angles and print("---")
+    there_are_angles and print("")
 
     for p in zeros:
         if p.imag != 0:
@@ -292,7 +300,7 @@ def compensate_error(fdt, obj=None, pole=None, s_star=None, verbose=True):
     elif fdt_type == 2:
         error = 1 / gain
         print("e_step(oo)=0, e_ramp(oo)=0, e_parab(oo)={:.2g}".format(error))
-    print("---")
+    print("")
     if obj is not None:
         obj = float(obj)
 
@@ -321,12 +329,12 @@ def compensate_error(fdt, obj=None, pole=None, s_star=None, verbose=True):
                 z = pole / gain / obj
 
             ctrl = co.tf([1, z], [1, pole])
-            print("---")
+            print("")
             print("Posición del polo: s={:.2g}".format(-pole))
 
-        print("---")
+        print("")
         print("Posición del cero: s={:.2g}".format(-z))
-        print("---")
+        print("")
 
     k_c = 1
     if s_star is not None:
@@ -336,7 +344,7 @@ def compensate_error(fdt, obj=None, pole=None, s_star=None, verbose=True):
         else:
             k_c = abs(s_star + pole)/abs(s_star + z)
         print("K_adj = {:.5g}".format(k_c))
-        print("---")
+        print("")
     print("C(s)=\n{}".format(k_c*ctrl))
 
     return ctrl
@@ -404,7 +412,7 @@ def solve_equation_system(inp, vars, eqs):
         pprint("{}(s)/{}(s)=".format(str(k).replace("_i_","I"), inp))
         pprint(simplify(v) / inp)
         print("")
-        print("---")
+        print("")
         print("")
 
 
@@ -466,13 +474,13 @@ if False:
         fdt = sys.argv[2].replace("^", "**")
         print("* Asíntotas")
         asynt(fdt)
-        print("---")
+        print("")
         print("* Puntos de ruptúra")
         rupture_points(fdt)
-        print("---")
+        print("")
         print("* Ángulos de partida/llegada")
         root_locus_angles(fdt)
-        print("---")
+        print("")
         root_locus(fdt)
     elif sys.argv[1] == "compensate_error":
         fdt = sys.argv[2].replace("^", "**")

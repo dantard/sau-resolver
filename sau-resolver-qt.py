@@ -10,7 +10,7 @@ from contextlib import redirect_stdout
 import configparser
 
 class Tab():
-    def __init__(self):
+    def __init__(self, name="Tab"):
         self.layout = QVBoxLayout()
         self.layout2 = QFormLayout()
         self.tab = QWidget()
@@ -18,7 +18,14 @@ class Tab():
         self.dic = {}
         self.tab.setLayout(self.layout)
         self.my_font = QFontDatabase.systemFont(QFontDatabase.FixedFont)
+        self.name = name
+        try:
+            config.add_section(name)
+        except:
+            pass
 
+    def count(self):
+        return len(self.dic)
 
     def append(self, widget, name):
         widget.setFont(self.my_font)
@@ -36,7 +43,14 @@ class Tab():
         res = self.dic[name]
         res.setText(value)
 
+    def getconfig(self, sec, name, default):
+        try:
+            return config.get(sec, name)
+        except:
+            return default
+
     def add_line_edit(self, name="test", text=""):
+        text = self.getconfig(self.name, name, text)
         edit = QLineEdit(text)
         self.append(edit, name)
 
@@ -45,18 +59,16 @@ class Tab():
         edit.setReadOnly(True)
         self.append(edit, name)
 
+    def save(self):
+        for k, v in self.dic.items():
+            try:
+                config.set(self.name, k, v.text())
+            except:
+                pass
 
 # CONFIG
-opt_fdt_control = "1/(s+2)/(s+3)/(s+5)"
-
 config = configparser.RawConfigParser()
 config.read('sau-resolver-qt.ini')
-try:
-    opt_fdt_control = config.get("Config", "opt_fdt_control")
-except:
-    pass
-#####
-
 
 class Form(QDialog):
 
@@ -74,34 +86,34 @@ class Form(QDialog):
         layoutmain.addWidget(self.tab)
         layoutmain.addWidget(self.button1)
 
-        self.tab_root_locus = Tab()
+        self.tab_root_locus = Tab("tab_root_locus")
         self.tab_root_locus.add_line_edit("FdT", "1/(s^3+3*s^2+2*s+1)")
 
-        self.tab_step = Tab()
+        self.tab_step = Tab("tab_step")
         self.tab_step.add_line_edit("FdT", "1/(s^3+3*s^2+2*s+1)")
 
-        self.tab_routh = Tab()
+        self.tab_routh = Tab("tab_routh")
         self.tab_routh.add_line_edit("FdT", "1/(s^3+3*s^2+2*s+1)")
         self.tab_routh.add_text_edit("Resultado")
 
-        self.tab_control = Tab()
-        self.tab_control.add_line_edit("FdT", opt_fdt_control)
+        self.tab_control = Tab("tab_control")
+        self.tab_control.add_line_edit("FdT", "1/(s+1)")
         self.tab_control.add_line_edit("s*", "-4+8j")
         self.tab_control.add_line_edit("Cero", "0")
         self.tab_control.add_text_edit("Resultado")
 
-        self.tab_root_locus_all = Tab()
+        self.tab_root_locus_all = Tab("tab_root_locus_all")
         self.tab_root_locus_all.add_line_edit("FdT", "1/(s^3+3*s^2+2*s+1)")
         self.tab_root_locus_all.add_text_edit("Resultado")
 
-        self.tab_error = Tab()
+        self.tab_error = Tab("tab_error")
         self.tab_error.add_line_edit("FdT", "1/(s^3+3*s^2+2*s+1)")
         self.tab_error.add_line_edit("Objetivo de error", "0.1")
         self.tab_error.add_line_edit("Polo")
         self.tab_error.add_line_edit("s*")
         self.tab_error.add_text_edit("Resultado")
 
-        self.tab_systems = Tab()
+        self.tab_systems = Tab("tab_systems")
         self.tab_systems.add_line_edit("Entrada", "Vr")
         self.tab_systems.add_line_edit("Variables", "T,Ve,I,W")
         self.tab_systems.add_line_edit("eq1", "Vr-R*I-L*s*I-Ve=0")
@@ -109,8 +121,10 @@ class Form(QDialog):
         self.tab_systems.add_line_edit("eq3", "Ve-Ke*W=0")
         self.tab_systems.add_line_edit("eq4", "T-Ki*I=0")
         self.tab_systems.add_line_edit("eq5")
+        self.tab_systems.add_line_edit("eq6")
+        self.tab_systems.add_line_edit("eq7")
+        self.tab_systems.add_line_edit("eq8")
         self.tab_systems.add_text_edit("Resultado")
-
 
         self.tab.addTab(self.tab_systems.tab, "Sistemas")#0
         self.tab.addTab(self.tab_step.tab, "Escalón")#1
@@ -119,6 +133,14 @@ class Form(QDialog):
         self.tab.addTab(self.tab_root_locus_all.tab, "LdlR 2")#4
         self.tab.addTab(self.tab_control.tab, "Control")#5
         self.tab.addTab(self.tab_error.tab, "Error")#6
+
+        self.tabs = [self.tab_systems]
+        self.tabs.append(self.tab_step)
+        self.tabs.append(self.tab_routh)
+        self.tabs.append(self.tab_root_locus)
+        self.tabs.append(self.tab_root_locus_all)
+        self.tabs.append(self.tab_control)
+        self.tabs.append(self.tab_error)
 
         # Set dialog layout
         self.setLayout(layoutmain)
@@ -143,7 +165,7 @@ class Form(QDialog):
             elif self.tab.currentIndex() == 4:
                 resolver.root_locus_angles(self.tab_root_locus_all.get("FdT"))
                 resolver.rupture_points(self.tab_root_locus_all.get("FdT"))
-                print("---")
+                print("")
                 resolver.asynt(self.tab_root_locus_all.get("FdT"))
                 self.tab_root_locus_all.set("Resultado", f.getvalue())
             elif self.tab.currentIndex() == 6:
@@ -153,9 +175,10 @@ class Form(QDialog):
                                           self.tab_error.get("s*"))
                 self.tab_error.set("Resultado", f.getvalue())
             elif self.tab.currentIndex() == 0:
+
                 eqs = []
                 vars = self.tab_systems.get("Variables").split(",")
-                for i in range(5):
+                for i in range(self.tab_systems.count()-3):
                     eq = self.tab_systems.get("eq" + str(i + 1))
                     if eq is not None:
                         eqs.append(eq)
@@ -163,12 +186,9 @@ class Form(QDialog):
 
                 self.tab_systems.set("Resultado", f.getvalue())
 
-        # Save Config
-        try:
-            config.add_section("Config")
-        except:
-            pass
-        config.set("Config", "opt_fdt_control", self.tab_control.get("FdT"))
+        for i in self.tabs:
+            i.save()
+
         with open('sau-resolver-qt.ini', 'w') as configfile:
             config.write(configfile)
 
