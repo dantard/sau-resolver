@@ -39,6 +39,9 @@ class Tab():
         res = self.dic[name]
         return res.text() if res.text() != "" else None
 
+    def getf(self,name):
+        return float(self.get(name))
+
     def set(self, name, value):
         res = self.dic[name]
         res.setText(value)
@@ -70,124 +73,130 @@ class Tab():
 config = configparser.RawConfigParser()
 config.read('sau-resolver-qt.ini')
 
+
+class Tabs():
+    def __init__(self, parent=None):
+        self.tabs = {}
+
+    def add(self, name):
+        self.tabs[name] = Tab(name)
+        return self.tabs[name]
+
 class Form(QDialog):
 
     def __init__(self, parent=None):
         super(Form, self).__init__(parent)
-        # Create widgets
-        self.setMinimumSize(800,600)
-        #self.setFixedSize(800, 600)
 
+        self.setMinimumSize(800,600)
         self.tab = QTabWidget()
         self.button1 = QPushButton("Compute")
 
-        # Create layout and add widgets
         layoutmain = QVBoxLayout()
         layoutmain.addWidget(self.tab)
         layoutmain.addWidget(self.button1)
 
-        self.tab_root_locus = Tab("tab_root_locus")
-        self.tab_root_locus.add_line_edit("FdT", "1/(s^3+3*s^2+2*s+1)")
+        self.tabs = Tabs()
+        tab = self.tabs.add("Zona Válida")
+        tab.add_line_edit("Ts <", "1")
+        tab.add_line_edit("S% <", "20")
+        tab.add_line_edit("Tp <", "0")
+        tab.add_line_edit("Tp >", "0")
+        tab.add_text_edit("Resultado")
 
-        self.tab_step = Tab("tab_step")
-        self.tab_step.add_line_edit("FdT", "1/(s^3+3*s^2+2*s+1)")
+        tab = self.tabs.add("Lugar de las raíces")
+        tab.add_line_edit("FdT", "1/(s^3+3*s^2+2*s+1)")
 
-        self.tab_routh = Tab("tab_routh")
-        self.tab_routh.add_line_edit("FdT", "1/(s^3+3*s^2+2*s+1)")
-        self.tab_routh.add_text_edit("Resultado")
+        tab = self.tabs.add("Escalón")
+        tab.add_line_edit("FdT", "1/(s^3+3*s^2+2*s+1)")
 
-        self.tab_control = Tab("tab_control")
-        self.tab_control.add_line_edit("FdT", "1/(s+1)")
-        self.tab_control.add_line_edit("s*", "-4+8j")
-        self.tab_control.add_line_edit("Cero", "0")
-        self.tab_control.add_text_edit("Resultado")
+        tab = self.tabs.add("Routh")
+        tab.add_line_edit("FdT", "1/(s^3+3*s^2+2*s+1)")
+        tab.add_text_edit("Resultado")
 
-        self.tab_root_locus_all = Tab("tab_root_locus_all")
-        self.tab_root_locus_all.add_line_edit("FdT", "1/(s^3+3*s^2+2*s+1)")
-        self.tab_root_locus_all.add_text_edit("Resultado")
+        tab = self.tabs.add("Controlador")
+        tab.add_line_edit("FdT", "1/(s+1)")
+        tab.add_line_edit("s*", "-4+8j")
+        tab.add_line_edit("Cero", "0")
+        tab.add_text_edit("Resultado")
 
-        self.tab_error = Tab("tab_error")
-        self.tab_error.add_line_edit("FdT", "1/(s^3+3*s^2+2*s+1)")
-        self.tab_error.add_line_edit("Objetivo de error", "0.1")
-        self.tab_error.add_line_edit("Polo")
-        self.tab_error.add_line_edit("s*")
-        self.tab_error.add_text_edit("Resultado")
+        tab = self.tabs.add("Todo Lugar de las raíces")
+        tab.add_line_edit("FdT", "1/(s^3+3*s^2+2*s+1)")
+        tab.add_text_edit("Resultado")
 
-        self.tab_systems = Tab("tab_systems")
-        self.tab_systems.add_line_edit("Entrada", "Vr")
-        self.tab_systems.add_line_edit("Variables", "T,Ve,I,W")
-        self.tab_systems.add_line_edit("eq1", "Vr-R*I-L*s*I-Ve=0")
-        self.tab_systems.add_line_edit("eq2", "T-J*s*W-B*W=0")
-        self.tab_systems.add_line_edit("eq3", "Ve-Ke*W=0")
-        self.tab_systems.add_line_edit("eq4", "T-Ki*I=0")
-        self.tab_systems.add_line_edit("eq5")
-        self.tab_systems.add_line_edit("eq6")
-        self.tab_systems.add_line_edit("eq7")
-        self.tab_systems.add_line_edit("eq8")
-        self.tab_systems.add_text_edit("Resultado")
+        tab = self.tabs.add("Error")
+        tab.add_line_edit("FdT", "1/(s^3+3*s^2+2*s+1)")
+        tab.add_line_edit("Objetivo de error", "0.1")
+        tab.add_line_edit("Polo")
+        tab.add_line_edit("s*")
+        tab.add_text_edit("Resultado")
 
-        self.tab.addTab(self.tab_systems.tab, "Sistemas")#0
-        self.tab.addTab(self.tab_step.tab, "Escalón")#1
-        self.tab.addTab(self.tab_routh.tab, "Routh")#2
-        self.tab.addTab(self.tab_root_locus.tab, "LdlR")#3
-        self.tab.addTab(self.tab_root_locus_all.tab, "LdlR 2")#4
-        self.tab.addTab(self.tab_control.tab, "Control")#5
-        self.tab.addTab(self.tab_error.tab, "Error")#6
+        tab = self.tabs.add("Sistemas de Ecuaciones")
+        tab.add_line_edit("Entrada", "Vr")
+        tab.add_line_edit("Variables", "T,Ve,I,W")
+        tab.add_line_edit("eq1", "Vr-R*I-L*s*I-Ve=0")
+        tab.add_line_edit("eq2", "T-J*s*W-B*W=0")
+        tab.add_line_edit("eq3", "Ve-Ke*W=0")
+        tab.add_line_edit("eq4", "T-Ki*I=0")
+        tab.add_line_edit("eq5")
+        tab.add_line_edit("eq6")
+        tab.add_line_edit("eq7")
+        tab.add_line_edit("eq8")
+        tab.add_text_edit("Resultado")
 
-        self.tabs = [self.tab_systems]
-        self.tabs.append(self.tab_step)
-        self.tabs.append(self.tab_routh)
-        self.tabs.append(self.tab_root_locus)
-        self.tabs.append(self.tab_root_locus_all)
-        self.tabs.append(self.tab_control)
-        self.tabs.append(self.tab_error)
+        for k,v in self.tabs.tabs.items():
+            self.tab.addTab(v.tab, k)#0
 
-        # Set dialog layout
         self.setLayout(layoutmain)
-        # Add button signal to greetings slot
         self.button1.clicked.connect(self.greetings)
 
-    # Greets the user
     def greetings(self):
         f = io.StringIO()
         with redirect_stdout(f):
 
-            if self.tab.currentIndex() == 3:
-                resolver.root_locus(self.tab_root_locus.get("FdT"))
-            elif self.tab.currentIndex() == 1:
-                resolver.step_response(self.tab_step.get("FdT"))
-            elif self.tab.currentIndex() == 2:
-                resolver.routh(self.tab_routh.get("FdT"))
-                self.tab_routh.set("Resultado", f.getvalue())
-            elif self.tab.currentIndex() == 5:
-                resolver.compute_controller(self.tab_control.get("FdT"), self.tab_control.get("s*"), self.tab_control.get("Cero"))
-                self.tab_control.set("Resultado", f.getvalue())
-            elif self.tab.currentIndex() == 4:
-                resolver.root_locus_angles(self.tab_root_locus_all.get("FdT"))
-                resolver.rupture_points(self.tab_root_locus_all.get("FdT"))
+            text = self.tab.tabText(self.tab.currentIndex())
+            tab = self.tabs.tabs[text]
+
+            if  text == "Lugar de las raíces":
+                resolver.root_locus(tab.get("FdT"))
+            elif text == "Escalón":
+                resolver.step_response(tab.get("FdT"))
+            elif text == "Zona Válida":
+                tp = tab.getf("Tp >") - tab.getf("Tp <")
+                resolver.valid_zone(tab.getf("Ts <"),tab.getf("S% <"), tp , 0 , 0)
+                tab.set("Resultado", f.getvalue())
+
+            elif text == "Routh":
+                resolver.routh(tab.get("FdT"))
+                tab.set("Resultado", f.getvalue())
+            elif text == "Controlador":
+                resolver.compute_controller(tab.get("FdT"), tab.get("s*"), tab.get("Cero"))
+                tab.set("Resultado", f.getvalue())
+            elif text == "Todo Lugar de las raíces":
+                resolver.root_locus_angles(tab.get("FdT"))
+                resolver.rupture_points(tab.get("FdT"))
                 print("")
-                resolver.asynt(self.tab_root_locus_all.get("FdT"))
-                self.tab_root_locus_all.set("Resultado", f.getvalue())
-            elif self.tab.currentIndex() == 6:
-                resolver.compensate_error(self.tab_error.get("FdT"),
-                                          self.tab_error.get("Objetivo de error"),
-                                          self.tab_error.get("Polo"),
-                                          self.tab_error.get("s*"))
-                self.tab_error.set("Resultado", f.getvalue())
-            elif self.tab.currentIndex() == 0:
+                resolver.asynt(tab.get("FdT"))
+                tab.set("Resultado", f.getvalue())
+            elif text == "Error":
+                resolver.compensate_error(tab.get("FdT"),
+                                          tab.get("Objetivo de error"),
+                                          tab.get("Polo"),
+                                          tab.get("s*"))
+                tab.set("Resultado", f.getvalue())
+            elif text == "Sistemas de Ecuaciones":
 
                 eqs = []
-                vars = self.tab_systems.get("Variables").split(",")
-                for i in range(self.tab_systems.count()-3):
-                    eq = self.tab_systems.get("eq" + str(i + 1))
+                vars = tab.get("Variables").split(",")
+                for i in range(tab.count()-3):
+                    eq = tab.get("eq" + str(i + 1))
                     if eq is not None:
                         eqs.append(eq)
-                resolver.solve_equation_system(self.tab_systems.get("Entrada"), vars, eqs)
+                resolver.solve_equation_system(tab.get("Entrada"), vars, eqs)
 
-                self.tab_systems.set("Resultado", f.getvalue())
+                tab.set("Resultado", f.getvalue())
 
-        for i in self.tabs:
-            i.save()
+        for k,v in self.tabs.tabs.items():
+            v.save()
 
         with open('sau-resolver-qt.ini', 'w') as configfile:
             config.write(configfile)

@@ -57,6 +57,93 @@ def asynt(poly):
         print("Angles: {}".format(angles))
         return numb_asynt, poc, angles
 
+def valid_zone(ts, s_perc, tp, xmax, ymax):
+    if s_perc > 0:
+        zeta = -math.log(s_perc/100)/math.sqrt(math.pi*math.pi+math.log(s_perc/100)*math.log(s_perc/100))
+        angle = math.acos(zeta)
+    else:
+        angle = 0
+    zwn = 4/ts if ts > 0 else 0
+    wd = math.pi / tp if tp != 0 else 0
+
+
+    ymax = max(ymax, wd+5)
+
+    plt.figure(1)
+    plt.ion()
+    axes = plt.gca()
+    x1, x2 = axes.get_xlim()
+    xmax = max(xmax, zwn + 5, -x1)
+
+    if angle > 0:
+
+        y_max_angle = xmax * math.tan(angle)
+        x_cross_wd = math.fabs(wd) / math.tan(angle)
+        xmax = max(xmax, x_cross_wd+5)
+        ymax = max(ymax, y_max_angle+5)
+
+        if zwn > 0:
+            y_zwn = zwn * math.tan(angle)
+            print(x_cross_wd, zwn)
+            if wd >= 0:
+
+                if wd == 0 or wd > y_max_angle or x_cross_wd > xmax:
+                    plt.fill_between([-zwn, -xmax], [-y_zwn, -y_max_angle], [y_zwn, y_max_angle], alpha=0.5)
+                    print("b")
+                else:
+                    if x_cross_wd < zwn:
+                        plt.fill_between([-zwn, -xmax], [-wd, -wd], [wd, wd], alpha=0.5)
+                    else:
+                        plt.fill_between([-zwn, -x_cross_wd, -xmax], [-y_zwn, -wd, -wd], [y_zwn, wd, wd], alpha=0.5)
+            else:
+                wd = -wd
+                if wd > y_max_angle or x_cross_wd > xmax:
+                    print("b")
+                    pass
+                elif x_cross_wd > zwn:
+                    print("c")
+                    plt.fill_between([-x_cross_wd, -xmax], [wd, wd], [wd, y_max_angle], alpha=0.5)
+                    plt.fill_between([-x_cross_wd, -xmax], [-wd, -wd], [-wd, -y_max_angle], alpha=0.5)
+                else:
+                    plt.fill_between([-zwn, -xmax], [wd, wd], [y_zwn, y_max_angle], alpha=0.5)
+                    plt.fill_between([-zwn, -xmax], [-wd, -wd], [-y_zwn, -y_max_angle], alpha=0.5)
+        else:
+            if wd > 0:
+                if x_cross_wd > xmax:
+                    plt.fill_between([0, -xmax], [0, y_max_angle], [0, -y_max_angle], alpha=0.5)
+                else:
+                    plt.fill_between([0, -x_cross_wd, -xmax], [0, wd, wd], [0, -wd, -wd], alpha=0.5)
+            else:
+                wd = -wd
+                if x_cross_wd > xmax:
+                    pass
+                else:
+                    plt.fill_between([-x_cross_wd, -xmax], [wd, wd], [wd, y_max_angle], alpha=0.5)
+                    plt.fill_between([-x_cross_wd, -xmax], [-wd, -wd], [-wd, -y_max_angle], alpha=0.5)
+    else: #angle == 0
+        if zwn >= 0:
+            if wd > 0:
+                plt.fill_between([-zwn, -xmax], [wd, wd], [-wd, -wd], alpha=0.5)
+            else:
+                wd=-wd
+                plt.fill_between([-zwn, -xmax], [wd, wd], [ymax, ymax], alpha=0.5)
+                plt.fill_between([-zwn, -xmax], [-wd, -wd], [-ymax, -ymax], alpha=0.5)
+        else:
+            pass
+
+
+    if True:
+        if angle > 0:
+            plt.plot([0, -xmax], [0,  xmax*math.tan(angle)])
+            plt.plot([0, -xmax], [0, -xmax*math.tan(angle)])
+        if zwn > 0:
+            plt.plot([-zwn, -zwn], [-ymax, ymax])
+        if wd <20:
+            plt.plot([0,-xmax], [wd, wd])
+            plt.plot([0,-xmax], [-wd, -wd])
+
+    plt.show(block=False)
+
 
 def rupture_points(poly):
     poly=sp.parse_expr(poly.replace("^","**"))
@@ -349,9 +436,12 @@ def compensate_error(fdt, obj=None, pole=None, s_star=None, verbose=True):
 
     return ctrl
 
+from multiprocessing import Process
+
 
 def root_locus(fdt):
-    fig = plt.figure()
+
+    plt.figure(1)
     tf_ctrl = text_to_tf(fdt)
 
     a, b = co.root_locus(tf_ctrl, plot=False)
@@ -380,9 +470,16 @@ def root_locus(fdt):
 
    # ax =plt.axes()
    # ax.set_xlim(min(real_part)-math.fabs(min(real_part)*2), max(real_part)+math.fabs(max(real_part)*2))
+    def plot_graph():
+        while True:
+            plt.pause(0.01)
 
-    plt.show()
+        plt.show(block=False)
+        plt.pause(0.1)
 
+
+    p = Process(target=plot_graph)
+    p.start()
 
 def solve_equation_system(inp, vars, eqs):
 
@@ -414,85 +511,4 @@ def solve_equation_system(inp, vars, eqs):
         print("")
         print("")
         print("")
-
-
-if False:
-	
-    set_verbose(True)
-    
-    def check_error_one_param():
-        if len(sys.argv) < 3:
-            print("Use: {} {} <fdt>".format(sys.argv[0], sys.argv[1]))
-            print("Example: {} {} 's^2+2*s+1'".format(sys.argv[0], sys.argv[1]))
-            sys.exit(0)
-
-    if len(sys.argv) < 2:
-        print("Available commands are:")
-        print("root_locus")
-        print("root_locus_angles")
-        print("compute_controller")
-        print("step_response")
-        print("solve_equation_system")
-        sys.exit(0)
-
-    if sys.argv[1] == "root_locus":
-        check_error_one_param()
-        root_locus(sys.argv[2])
-    elif sys.argv[1] == "root_locus_angles":
-        check_error_one_param()
-        root_locus_angles(sys.argv[2])
-    elif sys.argv[1] == "step_response":
-        check_error_one_param()
-        step_response(sys.argv[2])
-    elif sys.argv[1] == "compute_controller":
-        if len(sys.argv) < 4:
-            print("Use: {} compute_controller <plant> <s*> [RA_zero]".format(sys.argv[0]))
-            print("Example: {} compute_controller 's^2+2*s+1' '-8+4j' '-8' ".format(sys.argv[0]))
-            sys.exit(0)
-        if len(sys.argv) >=5:
-            compute_controller(sys.argv[2], sys.argv[3], sys.argv[4])
-        else:
-            compute_controller(sys.argv[2], sys.argv[3], "")
-    elif sys.argv[1] == "solve_equation_system":
-        if len(sys.argv) !=5:
-            print("Use: {} solve_equation_system <input> <[variables]> <[equations]>".format(sys.argv[0]))
-            print("Example: {} solve_equation_system 'Vr' 'i, ve, om, t' 'vr-(r*i+l*s*i+ve)=0, t-(j*s*om+b*om)=0, \
-                                                                               t-ki*i=0, ve-ke*om=0'".format(sys.argv[0]))
-            sys.exit(0)
-        vars = sys.argv[3].replace(" ", "").split(",")
-        eqs = sys.argv[4].replace(" ", "").split(",")
-        print(vars, eqs)
-        solve_equation_system(sys.argv[2], vars, eqs)
-    elif sys.argv[1] == "rupture_points":
-        check_error_one_param()
-        rupture_points(sys.argv[2].replace("^","**"))
-    elif sys.argv[1] == "asynt":
-        check_error_one_param()
-        asynt(sys.argv[2].replace("^", "**"))
-    elif sys.argv[1] == "root_locus_all":
-        check_error_one_param()
-        fdt = sys.argv[2].replace("^", "**")
-        print("* Asíntotas")
-        asynt(fdt)
-        print("")
-        print("* Puntos de ruptúra")
-        rupture_points(fdt)
-        print("")
-        print("* Ángulos de partida/llegada")
-        root_locus_angles(fdt)
-        print("")
-        root_locus(fdt)
-    elif sys.argv[1] == "compensate_error":
-        fdt = sys.argv[2].replace("^", "**")
-        if len(sys.argv) == 4:
-            compensate_error(fdt, sys.argv[3])
-        elif len(sys.argv) == 5:
-            compensate_error(fdt, sys.argv[3], sys.argv[4])
-        elif len(sys.argv) == 6:
-            if sys.argv[4] == "0":
-                compensate_error(fdt, sys.argv[3], None, sys.argv[5])
-            else:
-                compensate_error(fdt, sys.argv[3], sys.argv[4], sys.argv[5])
-        else:
-            compensate_error(fdt)
 
