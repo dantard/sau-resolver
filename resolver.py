@@ -142,7 +142,7 @@ def valid_zone(ts, s_perc, tp, xmax, ymax):
             plt.plot([0,-xmax], [wd, wd])
             plt.plot([0,-xmax], [-wd, -wd])
 
-    plt.show(block=False)
+    plt.show(block=True)
 
 
 def rupture_points(poly):
@@ -328,6 +328,56 @@ def compute_controller(planta, s_star, cero=None):
 def step_response(fdt):
     tf_ctrl = text_to_tf(fdt)
     t, y = co.step_response(tf_ctrl)
+    print(tf_ctrl.num, tf_ctrl.den)
+
+    def find_time_index_by_val(val):
+        for i in range(len(t)):
+            if (y[i]>val):
+                return i
+
+    def find_time_index_by_time(val):
+        for i in range(len(t)):
+            if (t[i]>val):
+                return i
+
+
+    if len(tf_ctrl.num[0][0]) == 1:
+        print("1")
+
+        plt.plot([0, t[-1]], [tf_ctrl.dcgain(), tf_ctrl.dcgain()], 'g')
+        plt.text(0, tf_ctrl.dcgain()*1.01, "mu: {:.2f}".format(tf_ctrl.dcgain()))
+
+        if len(tf_ctrl.den[0][0]) == 2:
+            print("2")
+            # Primer orden
+            tau = tf_ctrl.den[0][0][1]/tf_ctrl.den[0][0][0]
+            i = find_time_index_by_time(3*tau)
+            plt.plot([t[i], t[i]], [0, y[i]], 'k')
+
+            i = find_time_index_by_val(0.1 * tf_ctrl.dcgain())
+            plt.plot([t[i], t[i]], [0, y[i]], 'k')
+            i = find_time_index_by_val(0.9 * tf_ctrl.dcgain())
+            plt.plot([t[i], t[i]], [0, y[i]], 'k')
+
+        if len(tf_ctrl.den[0][0]) == 3:
+            print("2")
+            # Primer orden
+            zwn = (tf_ctrl.den[0][0][1] / tf_ctrl.den[0][0][2])/2
+            wn = math.sqrt(tf_ctrl.den[0][0][0] / tf_ctrl.den[0][0][2])
+            z = zwn/wn
+            wd=wn*sqrt(1-z**2)
+
+            i = find_time_index_by_time(4/zwn)
+            plt.plot([t[i], t[i]], [0, y[i]], 'r')
+            plt.text(t[i] * 1.01, 0, "Ts98%: {:.2f}s".format(t[i]))
+
+            tp = math.pi / wd
+            i = find_time_index_by_time(tp)
+            plt.plot([t[i], t[i]], [0, y[i]], 'y')
+            plt.plot([0, t[i]], [y[i], y[i]], 'y')
+            plt.text(t[i],y[i]*1.01, "S%: {:.2f}%".format((y[i]-tf_ctrl.dcgain())/tf_ctrl.dcgain()*100))
+            plt.text(t[i]*1.01, 0, "Tp: {:.2f}s".format(tp))
+
     plt.plot(t, y)
     plt.show()
 
@@ -467,19 +517,18 @@ def root_locus(fdt):
     for pol in a:
         plt.scatter(pol.real, pol.imag, marker="x", color='red')
         real_part.append(pol.real)
+    plt.show(block=True)
 
-   # ax =plt.axes()
-   # ax.set_xlim(min(real_part)-math.fabs(min(real_part)*2), max(real_part)+math.fabs(max(real_part)*2))
-    def plot_graph():
-        while True:
-            plt.pause(0.01)
-
-        plt.show(block=False)
-        plt.pause(0.1)
-
-
-    p = Process(target=plot_graph)
-    p.start()
+   #ax =plt.axes()
+   #ax.set_xlim(min(real_part)-math.fabs(min(real_part)*2), max(real_part)+math.fabs(max(real_part)*2))
+#    def plot_graph():
+#        while True:
+#            plt.pause(0.01)
+#
+#        plt.show(block=False)
+#        plt.pause(0.1)
+#    p = Process(target=plot_graph)
+#    p.start()
 
 def solve_equation_system(inp, vars, eqs):
 

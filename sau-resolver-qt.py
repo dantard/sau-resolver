@@ -105,9 +105,12 @@ class Form(QDialog):
 
         tab = self.tabs.add("Lugar de las raíces")
         tab.add_line_edit("FdT", "1/(s^3+3*s^2+2*s+1)")
+        tab.add_text_edit("Resultado")
+
 
         tab = self.tabs.add("Escalón")
         tab.add_line_edit("FdT", "1/(s^3+3*s^2+2*s+1)")
+        tab.add_text_edit("Resultado")
 
         tab = self.tabs.add("Routh")
         tab.add_line_edit("FdT", "1/(s^3+3*s^2+2*s+1)")
@@ -160,6 +163,7 @@ class Form(QDialog):
                 resolver.root_locus(tab.get("FdT"))
             elif text == "Escalón":
                 resolver.step_response(tab.get("FdT"))
+                tab.set("Resultado", f.getvalue())
             elif text == "Zona Válida":
                 tp = tab.getf("Tp >") - tab.getf("Tp <")
                 resolver.valid_zone(tab.getf("Ts <"),tab.getf("S% <"), tp , 0 , 0)
