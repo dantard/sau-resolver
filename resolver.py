@@ -54,7 +54,7 @@ def asynt(poly):
         angles = []
         for i in range(numb_asynt):
             angles.append(180*(2*i+1)/numb_asynt)
-        print("Angles: {}".format(angles))
+        print("Ángulos: {}".format(angles))
         return numb_asynt, poc, angles
 
 def valid_zone(ts, s_perc, tp, xmax, ymax):
@@ -161,7 +161,7 @@ def rupture_points(poly):
 
     real_parts.sort()
     f = num*diff(den) - diff(num)*den
-    print("N'D - ND' = 0 -> {} ".format(f))
+    print("N'D - ND' = 0 -> {} = 0 ".format(str(f).replace("**", "^")))
     r = solve(f)
     print("Raíces -> {}".format([i.evalf(3) for i in r]))
     #pprint(r)
@@ -328,7 +328,6 @@ def compute_controller(planta, s_star, cero=None):
 def step_response(fdt):
     tf_ctrl = text_to_tf(fdt)
     t, y = co.step_response(tf_ctrl)
-    print(tf_ctrl.num, tf_ctrl.den)
 
     def find_time_index_by_val(val):
         for i in range(len(t)):
@@ -342,13 +341,11 @@ def step_response(fdt):
 
 
     if len(tf_ctrl.num[0][0]) == 1:
-        print("1")
 
         plt.plot([0, t[-1]], [tf_ctrl.dcgain(), tf_ctrl.dcgain()], 'g')
         plt.text(0, tf_ctrl.dcgain()*1.01, "mu: {:.2f}".format(tf_ctrl.dcgain()))
 
         if len(tf_ctrl.den[0][0]) == 2:
-            print("2")
             # Primer orden
             tau = tf_ctrl.den[0][0][1]/tf_ctrl.den[0][0][0]
             i = find_time_index_by_time(3*tau)
@@ -360,7 +357,6 @@ def step_response(fdt):
             plt.plot([t[i], t[i]], [0, y[i]], 'k')
 
         if len(tf_ctrl.den[0][0]) == 3:
-            print("2")
             # Primer orden
             zwn = (tf_ctrl.den[0][0][1] / tf_ctrl.den[0][0][2])/2
             wn = math.sqrt(tf_ctrl.den[0][0][0] / tf_ctrl.den[0][0][2])
@@ -489,7 +485,7 @@ def compensate_error(fdt, obj=None, pole=None, s_star=None, verbose=True):
 from multiprocessing import Process
 
 
-def root_locus(fdt):
+def root_locus(fdt, limit=None):
 
     plt.figure(1)
     tf_ctrl = text_to_tf(fdt)
@@ -510,6 +506,10 @@ def root_locus(fdt):
                 plt.plot([prev[cnt].real, val.real], [prev[cnt].imag, val.imag], color=colors[cnt])
             prev[cnt] = val
             cnt = (cnt + 1) % num_roots
+
+        if limit is not None and b[num_rows] > limit:
+            break
+
         num_rows = num_rows + 1
 
     a = co.pole(tf_ctrl)

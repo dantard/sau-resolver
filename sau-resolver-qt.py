@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
 import sys
-from PySide6.QtWidgets import (QLineEdit, QPushButton, QApplication,
+from PyQt5.QtWidgets import (QLineEdit, QPushButton, QApplication,
     QVBoxLayout, QDialog, QTextEdit, QTabWidget, QWidget, QLabel, QHBoxLayout, QFormLayout)
-from PySide6.QtGui import QFontDatabase
+from PyQt5.QtGui import QFontDatabase
 import resolver
 import io
 from contextlib import redirect_stdout
@@ -39,7 +39,7 @@ class Tab():
         res = self.dic[name]
         return res.text() if res.text() != "" else None
 
-    def getf(self,name):
+    def getf(self, name):
         return float(self.get(name))
 
     def set(self, name, value):
@@ -105,6 +105,7 @@ class Form(QDialog):
 
         tab = self.tabs.add("Lugar de las raíces")
         tab.add_line_edit("FdT", "1/(s^3+3*s^2+2*s+1)")
+        tab.add_line_edit("Ganancia", "")
         tab.add_text_edit("Resultado")
 
 
@@ -159,8 +160,12 @@ class Form(QDialog):
             text = self.tab.tabText(self.tab.currentIndex())
             tab = self.tabs.tabs[text]
 
-            if  text == "Lugar de las raíces":
-                resolver.root_locus(tab.get("FdT"))
+            if text == "Lugar de las raíces":
+                limit = tab.get("Ganancia")
+                if limit is not None:
+                    resolver.root_locus(tab.get("FdT"), float(limit))
+                else:
+                    resolver.root_locus(tab.get("FdT"))
             elif text == "Escalón":
                 resolver.step_response(tab.get("FdT"))
                 tab.set("Resultado", f.getvalue())
