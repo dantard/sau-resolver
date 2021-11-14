@@ -184,7 +184,8 @@ class Form(QDialog):
                 resolver.root_locus_angles(tab.get("FdT"))
                 resolver.rupture_points(tab.get("FdT"))
                 print("")
-                resolver.asynt(tab.get("FdT"))
+                a, b, c = resolver.asynt(tab.get("FdT"))
+                resolver.root_locus(tab.get("FdT"), asynt=[a, b])
                 tab.set("Resultado", f.getvalue())
             elif text == "Error":
                 resolver.compensate_error(tab.get("FdT"),

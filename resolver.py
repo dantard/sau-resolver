@@ -162,21 +162,22 @@ def rupture_points(poly):
     real_parts.sort()
     f = num*diff(den) - diff(num)*den
     print("N'D - ND' = 0 -> {} = 0 ".format(str(f).replace("**", "^")))
-    r = solve(f)
-    print("Raíces -> {}".format([i.evalf(3) for i in r]))
+    raices = solve(f)
+    print("Raíces -> {}".format([r.evalf(3) for r in raices]))
     #pprint(r)
 
-    for v in r:
-        if sp.im(v).evalf() == 0:
-            count = len([i for i in real_parts if i > v.evalf()])
+    for r in raices:
+        # si es una raíz real
+        if math.fabs(sp.im(r).evalf()) < 1e-10:
+            count = len([i for i in real_parts if i > r.evalf()])
             if count %2 == 0:
-                print("Punto de ruptura en s={:.3g} NO válido".format(v.evalf()))
+                print("Punto de ruptura en s={:.3g} NO válido".format(r.evalf()))
             else:
-                print("Punto de ruptura en s={:.3g} válido".format(v.evalf()))
+                print("Punto de ruptura en s={:.3g} válido".format(r.evalf()))
         else:
-            print("Punto de ruptura en s={} NO válido".format(v.evalf(3)))
+            print("Punto de ruptura en s={} NO válido".format(r.evalf(3)))
 
-    return r
+    return raices
 
 
 def routh(polinomio):
@@ -485,50 +486,67 @@ def compensate_error(fdt, obj=None, pole=None, s_star=None, verbose=True):
 from multiprocessing import Process
 
 
-def root_locus(fdt, limit=None):
+def root_locus(fdt, limit=None, asynt=None):
 
     plt.figure(1)
     tf_ctrl = text_to_tf(fdt)
 
-    a, b = co.root_locus(tf_ctrl, plot=False)
+    # a contains a list of lists. ej 4 poles: [ [3,4,-4+4j,5],[...]]
+    rows, b = co.root_locus(tf_ctrl, plot=False)
     colors = ['red', 'green', 'blue', 'yellow', 'black']
-
+    print(rows)
+    print(b)
     prev = []
-    num_roots = len(a[0])
+    num_roots = len(rows[0])
+
+    # Draw Asyntotes before anything else
+    if asynt is not None:
+        num = asynt[0]
+        poc = asynt[1]
+        xmax = -1e6
+        ymax = -1e6
+
+        # Compute limits
+        for row in rows:
+            for pole in row:
+                xmax = pole.real if pole.real > xmax else xmax
+                ymax = pole.imag if pole.imag > ymax else ymax
+
+        length = math.sqrt(xmax**2 + ymax**2)
+        angle_inc = 360/num
+        angle = angle_inc/2
+        for i in range(0, num):
+            if angle != 180:
+                plt.plot([poc, poc+length*math.cos(angle*math.pi/180)], [0, length*math.sin(angle*math.pi/180)], color=(0.6, 0.6, 0.6))
+            angle = angle + angle_inc
+
+    # prev contains the previous point for any rama
     for i in range(num_roots):
         prev.append((0 + 0j))
 
-    num_rows = 0
-    for row in a:
+    current_row = 0
+    for row in rows:
         cnt = 0
         for val in row:
-            if num_rows > 0:
+            if current_row > 0:
                 plt.plot([prev[cnt].real, val.real], [prev[cnt].imag, val.imag], color=colors[cnt])
             prev[cnt] = val
             cnt = (cnt + 1) % num_roots
 
-        if limit is not None and b[num_rows] > limit:
+        if limit is not None and b[current_row] > limit:
             break
+        else:
+            current_row = current_row + 1
 
-        num_rows = num_rows + 1
-
-    a = co.pole(tf_ctrl)
+    rows = co.pole(tf_ctrl)
     real_part = []
-    for pol in a:
+    imag_part = []
+    for pol in rows:
         plt.scatter(pol.real, pol.imag, marker="x", color='red')
         real_part.append(pol.real)
-    plt.show(block=True)
+        imag_part.append(pol.imag)
 
-   #ax =plt.axes()
-   #ax.set_xlim(min(real_part)-math.fabs(min(real_part)*2), max(real_part)+math.fabs(max(real_part)*2))
-#    def plot_graph():
-#        while True:
-#            plt.pause(0.01)
-#
-#        plt.show(block=False)
-#        plt.pause(0.1)
-#    p = Process(target=plot_graph)
-#    p.start()
+    plt.show(block=True)
 
 def solve_equation_system(inp, vars, eqs):
 
