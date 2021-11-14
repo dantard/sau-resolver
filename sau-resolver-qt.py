@@ -42,6 +42,10 @@ class Tab():
     def getf(self, name):
         return float(self.get(name))
 
+    def geti(self, name):
+        return int(self.get(name))
+
+
     def set(self, name, value):
         res = self.dic[name]
         res.setText(value)
@@ -125,6 +129,7 @@ class Form(QDialog):
 
         tab = self.tabs.add("Todo Lugar de las raíces")
         tab.add_line_edit("FdT", "1/(s^3+3*s^2+2*s+1)")
+        tab.add_line_edit("K Max", "")
         tab.add_text_edit("Resultado")
 
         tab = self.tabs.add("Error")
@@ -185,7 +190,7 @@ class Form(QDialog):
                 resolver.rupture_points(tab.get("FdT"))
                 print("")
                 a, b, c = resolver.asynt(tab.get("FdT"))
-                resolver.root_locus(tab.get("FdT"), asynt=[a, b])
+                resolver.root_locus(tab.get("FdT"), asynt=[a, b], limit=tab.geti("K Max"))
                 tab.set("Resultado", f.getvalue())
             elif text == "Error":
                 resolver.compensate_error(tab.get("FdT"),

@@ -164,16 +164,21 @@ def rupture_points(poly):
     print("N'D - ND' = 0 -> {} = 0 ".format(str(f).replace("**", "^")))
     raices = solve(f)
     print("Raíces -> {}".format([r.evalf(3) for r in raices]))
-    #pprint(r)
 
     for r in raices:
         # si es una raíz real
         if math.fabs(sp.im(r).evalf()) < 1e-10:
-            count = len([i for i in real_parts if i > r.evalf()])
-            if count %2 == 0:
-                print("Punto de ruptura en s={:.3g} NO válido".format(r.evalf()))
+            # may have a very small imaginary part
+
+            count = 0
+            for i in real_parts:
+                if i > sp.re(r).evalf():
+                    count += 1
+
+            if count % 2 == 0:
+                print("Punto de ruptura en s={:.3g} NO válido".format(sp.re(r).evalf()))
             else:
-                print("Punto de ruptura en s={:.3g} válido".format(r.evalf()))
+                print("Punto de ruptura en s={:.3g} válido".format(sp.re(r).evalf()))
         else:
             print("Punto de ruptura en s={} NO válido".format(r.evalf(3)))
 
@@ -486,7 +491,7 @@ def compensate_error(fdt, obj=None, pole=None, s_star=None, verbose=True):
 from multiprocessing import Process
 
 
-def root_locus(fdt, limit=None, asynt=None):
+def root_locus(fdt, limit=0, asynt=None):
 
     plt.figure(1)
     tf_ctrl = text_to_tf(fdt)
@@ -494,8 +499,6 @@ def root_locus(fdt, limit=None, asynt=None):
     # a contains a list of lists. ej 4 poles: [ [3,4,-4+4j,5],[...]]
     rows, b = co.root_locus(tf_ctrl, plot=False)
     colors = ['red', 'green', 'blue', 'yellow', 'black']
-    print(rows)
-    print(b)
     prev = []
     num_roots = len(rows[0])
 
@@ -507,17 +510,22 @@ def root_locus(fdt, limit=None, asynt=None):
         ymax = -1e6
 
         # Compute limits
+        idx = 0
         for row in rows:
             for pole in row:
                 xmax = pole.real if pole.real > xmax else xmax
                 ymax = pole.imag if pole.imag > ymax else ymax
 
-        length = math.sqrt(xmax**2 + ymax**2)
+            if limit > 0 and  b[idx] > limit:
+                break
+            else:
+                idx = idx + 1
+
+        length = 1.5*math.sqrt(xmax**2 + ymax**2)
         angle_inc = 360/num
         angle = angle_inc/2
         for i in range(0, num):
-            if angle != 180:
-                plt.plot([poc, poc+length*math.cos(angle*math.pi/180)], [0, length*math.sin(angle*math.pi/180)], color=(0.6, 0.6, 0.6))
+            plt.plot([poc, poc+length*math.cos(angle*math.pi/180)], [0, length*math.sin(angle*math.pi/180)], color=(0.6, 0.6, 0.6))
             angle = angle + angle_inc
 
     # prev contains the previous point for any rama
@@ -533,7 +541,7 @@ def root_locus(fdt, limit=None, asynt=None):
             prev[cnt] = val
             cnt = (cnt + 1) % num_roots
 
-        if limit is not None and b[current_row] > limit:
+        if limit > 0 and b[current_row] > limit:
             break
         else:
             current_row = current_row + 1
