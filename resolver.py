@@ -145,7 +145,7 @@ def valid_zone(ts, s_perc, tp, xmax, ymax):
     plt.show(block=True)
 
 
-def rupture_points(poly):
+def rupture_points(poly, verb=True):
     poly=sp.parse_expr(poly.replace("^","**"))
     num=poly.as_numer_denom()[0]
     den = poly.as_numer_denom()[1]
@@ -161,22 +161,23 @@ def rupture_points(poly):
 
     real_parts.sort()
     f = num*diff(den) - diff(num)*den
-    print("N'D - ND' = 0 -> {} ".format(f))
+    verb and print("N'D - ND' = 0 -> {} ".format(f))
     r = solve(f)
-    print("Raíces -> {}".format([i.evalf(3) for i in r]))
+    verb and print("Raíces -> {}".format([i.evalf(3) for i in r]))
     #pprint(r)
-
+    valid = []
     for v in r:
         if sp.im(v).evalf() == 0:
             count = len([i for i in real_parts if i > v.evalf()])
             if count %2 == 0:
-                print("Punto de ruptura en s={:.3g} NO válido".format(v.evalf()))
+                verb and print("Punto de ruptura en s={:.3g} NO válido".format(v.evalf()))
             else:
-                print("Punto de ruptura en s={:.3g} válido".format(v.evalf()))
+                verb and print("Punto de ruptura en s={:.3g} válido".format(v.evalf()))
+                valid.append(v.evalf())
         else:
-            print("Punto de ruptura en s={} NO válido".format(v.evalf(3)))
+            verb and print("Punto de ruptura en s={} NO válido".format(v.evalf(3)))
 
-    return r
+    return r, valid
 
 
 def routh(polinomio):
