@@ -1,9 +1,13 @@
 #!/usr/bin/env python
 
 import sys
+
+import matplotlib.pyplot as plt
 from PyQt5.QtWidgets import (QLineEdit, QPushButton, QApplication,
     QVBoxLayout, QDialog, QTextEdit, QTabWidget, QWidget, QLabel, QHBoxLayout, QFormLayout)
 from PyQt5.QtGui import QFontDatabase
+from PyQt5.QtCore import QTimer
+
 import resolver
 import io
 from contextlib import redirect_stdout
@@ -64,6 +68,7 @@ class Tab():
     def add_text_edit(self, name="test", text=""):
         edit = QTextEdit(text)
         edit.setReadOnly(True)
+        edit.setMinimumSize(800,600)
         self.append(edit, name)
 
     def save(self):
@@ -87,6 +92,8 @@ class Tabs():
         return self.tabs[name]
 
 class Form(QDialog):
+    def tick(self):
+        plt.pause(0.00001)
 
     def __init__(self, parent=None):
         super(Form, self).__init__(parent)
@@ -94,6 +101,10 @@ class Form(QDialog):
         self.setMinimumSize(800,600)
         self.tab = QTabWidget()
         self.button1 = QPushButton("Compute")
+
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.tick)
+        self.timer.start(10)
 
         layoutmain = QVBoxLayout()
         layoutmain.addWidget(self.tab)
@@ -152,11 +163,18 @@ class Form(QDialog):
         tab.add_line_edit("eq8")
         tab.add_text_edit("Resultado")
 
+        tab = self.tabs.add("Bode")
+        tab.add_line_edit("FdT", "1/(s^3+3*s^2+2*s+1)")
+        tab.add_text_edit("Resultado")
+
         for k,v in self.tabs.tabs.items():
             self.tab.addTab(v.tab, k)#0
 
         self.setLayout(layoutmain)
         self.button1.clicked.connect(self.greetings)
+
+        resolver.set_blocking(False)
+
 
     def greetings(self):
         f = io.StringIO()
@@ -173,6 +191,9 @@ class Form(QDialog):
                     resolver.root_locus(tab.get("FdT"))
             elif text == "Escalón":
                 resolver.step_response(tab.get("FdT"))
+                tab.set("Resultado", f.getvalue())
+            elif text == "Bode":
+                resolver.asbode(tab.get("FdT"),6)
                 tab.set("Resultado", f.getvalue())
             elif text == "Zona Válida":
                 tp = tab.getf("Tp >") - tab.getf("Tp <")

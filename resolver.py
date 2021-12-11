@@ -2,6 +2,7 @@
 
 import sys
 
+import numpy as np
 from matplotlib import pyplot as plt
 import control as co
 import sympy as sp
@@ -10,11 +11,15 @@ from sympy import *
 import builtins as __builtin__
 
 verbose = True
-
+blocking = True
 
 def set_verbose(val):
     global verbose
     verbose = val
+
+def set_blocking(val):
+    global blocking
+    blocking = val
 
 
 def print(*args, **kwargs):
@@ -142,7 +147,7 @@ def valid_zone(ts, s_perc, tp, xmax, ymax):
             plt.plot([0,-xmax], [wd, wd])
             plt.plot([0,-xmax], [-wd, -wd])
 
-    plt.show(block=True)
+    plt.show(block=blocking)
 
 
 def rupture_points(poly):
@@ -332,6 +337,7 @@ def compute_controller(planta, s_star, cero=None):
 
 
 def step_response(fdt):
+    plt.figure()
     tf_ctrl = text_to_tf(fdt)
     t, y = co.step_response(tf_ctrl)
 
@@ -381,7 +387,7 @@ def step_response(fdt):
             plt.text(t[i]*1.01, 0, "Tp: {:.2f}s".format(tp))
 
     plt.plot(t, y)
-    plt.show()
+    plt.show(block=blocking)
 
 
 def root_locus_angles(fdt):
@@ -414,6 +420,16 @@ def root_locus_angles(fdt):
     if not there_are_angles:
         print("No hay polos o ceros con parte imaginaria no nula")
 
+
+def dc_gain_any_type(fdt):
+    num = fdt.num[0][0]
+    den = fdt.den[0][0]
+
+    fdt_type = 0
+    while den[len(den)-1] == 0:
+        den = den[0:-1]
+    gain = num[len(num)-1]/den[len(den)-1]
+    return gain
 
 def compensate_error(fdt, obj=None, pole=None, s_star=None, verbose=True):
 
@@ -554,7 +570,7 @@ def root_locus(fdt, limit=0, asynt=None):
         real_part.append(pol.real)
         imag_part.append(pol.imag)
 
-    plt.show(block=True)
+    plt.show(block=blocking)
 
 def solve_equation_system(inp, vars, eqs):
 
@@ -586,4 +602,240 @@ def solve_equation_system(inp, vars, eqs):
         print("")
         print("")
         print("")
+
+class Singularity:
+    def __init__(self, type, val):
+        self.type = type
+        self.val = val
+        self.m = []
+        self.v = []
+    def append_m(self,v):
+        self.m.append(v)
+
+    def append_v(self,v):
+        self.v.append(v)
+
+def print_table(module, m_important_freq):
+    module.sort(key=lambda x: x.val)
+    print("     ", end ="")
+#    print(m_important_freq)
+    for i in m_important_freq:
+        print("{:10g}".format(i), end ="")
+    print("")
+    for k in range(len(m_important_freq) * 10 + 5):
+        print("-", end="")
+    print("")
+
+    for i in module:
+        if i.type != -1:
+            print("s={:5g}".format(-i.val), end="")
+        else:
+            for k in range(len(m_important_freq)*10+5):
+                print("-", end="")
+
+            print("\nSuma   ", end="")
+        print("       ", end = "")
+        for j in i.m[:-1]:
+            print("|  {:3g}    ".format(j), end="")
+        print("|")
+    print("")
+
+#    print("     ", end ="")
+
+
+
+#f="27*(s+3)/(s+1)/(s+20)/s"
+def asbode(f, plot=1):
+    fdt=text_to_tf(f)
+
+    zeros = [-z for z in fdt.zero()]
+    poles = [-p for p in fdt.pole()]
+
+    zeros.sort()
+    poles.sort()
+
+    sing = [z for z in zeros if z!=0] + [p for p in poles if p!=0]
+    sing.sort()
+
+    min = sing[0]/10
+    max = sing[-1]*10
+    max_pwr = None
+    min_pwr = None
+
+    for pwr in range(-6,6):
+        if max==math.pow(10,pwr):
+            max_pwr = pwr+1
+            break
+        elif max < math.pow(10,pwr):
+            max_pwr = pwr
+            break
+
+    for pwr in range(-6,6):
+        if min==math.pow(10,pwr):
+            min_pwr = pwr-1
+            break
+        elif min < math.pow(10,pwr):
+            min_pwr = pwr-1
+            break
+
+    min=pow(10,min_pwr)
+    max=pow(10,max_pwr)
+
+    m_important_freq = [min,max]
+    p_important_freq = [min,max]
+
+    for i in zeros:
+        if i!=0:
+            m_important_freq.append(i)
+            p_important_freq.append(i/10)
+            p_important_freq.append(i*10)
+
+    for i in poles:
+        if i!= 0:
+            m_important_freq.append(i)
+            p_important_freq.append(i/10)
+            p_important_freq.append(i*10)
+
+    m_important_freq.sort()
+    p_important_freq.sort()
+
+    all=[]
+    mallv=[]
+    module = []
+    for cut in poles:
+        p = Singularity(0,cut)
+        for freq in m_important_freq:
+            if cut == 0:
+                p.append_m(-20)
+                p.append_v(20*math.log10(1/freq))
+            elif freq>=cut:
+                p.append_m(-20)
+                p.append_v(-20*math.log10(freq/cut))
+            else:
+                p.append_m(0)
+                p.append_v(0)
+        module.append(p)
+        all.append(p.m)
+        mallv.append(p.v)
+
+
+    for cut in zeros:
+        z = Singularity(1,cut)
+        for freq in m_important_freq:
+            if cut == 0:
+                p.append_m(-20)
+                p.append_v(20*math.log10(freq))
+            elif freq>=cut:
+                z.append_m(20)
+                z.append_v(20*math.log10(freq/cut))
+            else:
+                z.append_m(0)
+                z.append_v(0)
+        module.append(z)
+        all.append(z.m)
+        mallv.append(z.v)
+
+
+    res = Singularity(-1,1e6)
+    res.m = [sum(i) for i in zip(*all)]
+    module.append(res)
+
+    print("TABLA de GANANCIAS\n")
+
+    print_table(module,m_important_freq)
+
+    phase = []
+
+    all = []
+    allv = []
+    for cut in poles:
+        s = Singularity(0,cut)
+        for freq in p_important_freq:
+            if cut == 0:
+                s.append_m(0)
+                s.append_v(-90)
+            elif freq>=0.099999*cut and freq<10*cut:
+                s.append_m(-45)
+                s.append_v(-45*math.log10(freq/cut)-45)
+            elif freq>=10*cut:
+                s.append_m(0)
+                s.append_v(-90)
+            else:
+                s.append_m(0)
+                s.append_v(0)
+        phase.append(s)
+        all.append(s.m)
+        allv.append(s.v)
+
+    for cut in zeros:
+        s = Singularity(1,cut)
+        for freq in p_important_freq:
+            if cut == 0:
+                s.append_m(0)
+                s.append_v(90)
+            elif freq>=0.099999*cut and freq<10*cut:
+                s.append_m(+45)
+                s.append_v(+45*math.log10(freq/cut)+45)
+            elif freq>=10*cut:
+                s.append_m(0)
+                s.append_v(90)
+            else:
+                s.append_m(0)
+                s.append_v(0)
+        phase.append(s)
+        all.append(s.m)
+        allv.append(s.v)
+
+    res = Singularity(-1,1e6)
+    res.m = [sum(i) for i in zip(*all)]
+    phase.append(res)
+
+    print("TABLA de FASE\n")
+
+    print_table(phase,p_important_freq)
+
+    gain = 20 * math.log10(dc_gain_any_type(fdt))
+    print("GANANCIA INICIAL: {:.4g} dB".format(gain))
+    print("FASE INICIAL    : {:.4g} grados\n".format(phase[0].v[0]))
+
+    if plot > 0:
+        plt.figure()
+        w=np.logspace(min_pwr,max_pwr,1000)
+        mag,phase,omega = co.bode(fdt,w,dB=True)
+
+        ax1,ax2 = plt.gcf().axes     # get subplot axes
+        lines1 = ax1.get_lines()
+        lines2 = ax2.get_lines()
+
+        if plot & 2:
+            lines1[0].set_visible(False)
+            lines2[0].set_visible(False)
+
+        plt.sca(ax1)
+        resv = [sum(i)+gain for i in zip(*mallv)]
+        plt.plot(m_important_freq, resv)
+
+        if plot & 4:
+            plt.scatter(m_important_freq, resv)
+
+        plt.sca(ax2)
+        resv = [sum(i) for i in zip(*allv)]
+        plt.plot(p_important_freq, resv)
+        if plot & 4:
+            plt.scatter(p_important_freq, resv)
+
+        ymin = 1e6
+        idx = -1
+        #print(mag,omega)
+        for i in range(len(mag)):
+            mag_db = math.fabs(20*math.log10(mag[i]))
+            if mag_db < ymin:
+                ymin = mag_db
+                idx = i
+        if idx >=0:
+            print("FRECUENCIA de CORTE: {:.4g} rad/s, Mf: {:.4g} grados".format(omega[idx], 180+180*phase[idx]/math.pi))
+        else:
+            print("NO HAY FRECUENCIA de CORTE")
+
+        plt.show(block=blocking)
 
