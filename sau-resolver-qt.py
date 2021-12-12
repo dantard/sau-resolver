@@ -4,14 +4,51 @@ import sys
 
 import matplotlib.pyplot as plt
 from PyQt5.QtWidgets import (QLineEdit, QPushButton, QApplication,
-    QVBoxLayout, QDialog, QTextEdit, QTabWidget, QWidget, QLabel, QHBoxLayout, QFormLayout)
+    QVBoxLayout, QDialog, QTextEdit, QTabWidget, QWidget, QLabel, QHBoxLayout, QFormLayout, QTabBar, QStylePainter, QStyle, QStyleOptionTab)
 from PyQt5.QtGui import QFontDatabase
 from PyQt5.QtCore import QTimer
+from PyQt5 import QtGui, QtWidgets, QtCore
+
 
 import resolver
 import io
 from contextlib import redirect_stdout
 import configparser
+
+
+class TabBar(QTabBar):
+    def tabSizeHint(self, index):
+        s = QTabBar.tabSizeHint(self, index)
+        s.transpose()
+        return s
+
+    def paintEvent(self, event):
+        painter = QStylePainter(self)
+        opt = QStyleOptionTab()
+
+        for i in range(self.count()):
+            self.initStyleOption(opt, i)
+            painter.drawControl(QStyle.CE_TabBarTabShape, opt)
+            painter.save()
+
+            s = opt.rect.size()
+            s.transpose()
+            r = QtCore.QRect(QtCore.QPoint(), s)
+            r.moveCenter(opt.rect.center())
+            opt.rect = r
+
+            c = self.tabRect(i).center()
+            painter.translate(c)
+            painter.rotate(90)
+            painter.translate(-c)
+            painter.drawControl(QStyle.CE_TabBarTabLabel, opt)
+            painter.restore()
+
+class VerticalTabWidget(QTabWidget):
+    def __init__(self, *args, **kwargs):
+        QTabWidget.__init__(self, *args, **kwargs)
+        self.setTabBar(TabBar())
+        self.setTabPosition(QTabWidget.West)
 
 class Tab():
     def __init__(self, name="Tab"):
@@ -99,7 +136,8 @@ class Form(QDialog):
         super(Form, self).__init__(parent)
 
         self.setMinimumSize(800,600)
-        self.tab = QTabWidget()
+        self.tab = VerticalTabWidget() #QTabWidget()
+        self.tab.setTabPosition(QTabWidget.West)
         self.button1 = QPushButton("Compute")
 
         self.timer = QTimer()
@@ -111,44 +149,6 @@ class Form(QDialog):
         layoutmain.addWidget(self.button1)
 
         self.tabs = Tabs()
-        tab = self.tabs.add("Zona Válida")
-        tab.add_line_edit("Ts <", "1")
-        tab.add_line_edit("S% <", "20")
-        tab.add_line_edit("Tp <", "0")
-        tab.add_line_edit("Tp >", "0")
-        tab.add_text_edit("Resultado")
-
-        tab = self.tabs.add("Lugar de las raíces")
-        tab.add_line_edit("FdT", "1/(s^3+3*s^2+2*s+1)")
-        tab.add_line_edit("Ganancia", "")
-        tab.add_text_edit("Resultado")
-
-
-        tab = self.tabs.add("Escalón")
-        tab.add_line_edit("FdT", "1/(s^3+3*s^2+2*s+1)")
-        tab.add_text_edit("Resultado")
-
-        tab = self.tabs.add("Routh")
-        tab.add_line_edit("FdT", "1/(s^3+3*s^2+2*s+1)")
-        tab.add_text_edit("Resultado")
-
-        tab = self.tabs.add("Controlador")
-        tab.add_line_edit("FdT", "1/(s+1)")
-        tab.add_line_edit("s*", "-4+8j")
-        tab.add_line_edit("Cero", "0")
-        tab.add_text_edit("Resultado")
-
-        tab = self.tabs.add("Todo Lugar de las raíces")
-        tab.add_line_edit("FdT", "1/(s^3+3*s^2+2*s+1)")
-        tab.add_line_edit("K Max", "")
-        tab.add_text_edit("Resultado")
-
-        tab = self.tabs.add("Error")
-        tab.add_line_edit("FdT", "1/(s^3+3*s^2+2*s+1)")
-        tab.add_line_edit("Objetivo de error", "0.1")
-        tab.add_line_edit("Polo")
-        tab.add_line_edit("s*")
-        tab.add_text_edit("Resultado")
 
         tab = self.tabs.add("Sistemas de Ecuaciones")
         tab.add_line_edit("Entrada", "Vr")
@@ -163,8 +163,58 @@ class Form(QDialog):
         tab.add_line_edit("eq8")
         tab.add_text_edit("Resultado")
 
-        tab = self.tabs.add("Bode")
+        tab = self.tabs.add("Escalón")
+        tab.add_line_edit("FdT", "1/(s^2+s+1)")
+        tab.add_text_edit("Resultado")
+
+        tab = self.tabs.add("Routh")
+        tab.add_line_edit("FdT", "1/(s^3+3*s^2+2*s+K)")
+        tab.add_text_edit("Resultado")
+
+        tab = self.tabs.add("Zona Válida")
+        tab.add_line_edit("Ts98% <", "1")
+        tab.add_line_edit("S% <", "20")
+        tab.add_line_edit("Tp <", "2")
+        tab.add_line_edit("Tp >", "0")
+        tab.add_text_edit("Resultado")
+
+        tab = self.tabs.add("Todo Lugar de las raíces")
         tab.add_line_edit("FdT", "1/(s^3+3*s^2+2*s+1)")
+        tab.add_line_edit("K Max", "100")
+        tab.add_text_edit("Resultado")
+
+
+#        tab = self.tabs.add("Lugar de las raíces")
+#        tab.add_line_edit("FdT", "1/(s^3+3*s^2+2*s+1)")
+#        tab.add_line_edit("Ganancia", "")
+#        tab.add_text_edit("Resultado")
+
+        tab = self.tabs.add("Proporcional Derivativo")
+        tab.add_line_edit("FdT", "10/(s+1)/(s+2)")
+        tab.add_line_edit("s*", "-4+8j")
+        tab.add_text_edit("Resultado")
+
+        tab = self.tabs.add("Red de Adelanto")
+        tab.add_line_edit("FdT", "10/(s+1)/(s+2)")
+        tab.add_line_edit("s*", "-4+8j")
+        tab.add_line_edit("Cero", "-6")
+        tab.add_text_edit("Resultado")
+
+        tab = self.tabs.add("Red de Retardo")
+        tab.add_line_edit("FdT", "1/(s^3+3*s^2+2*s+1)")
+        tab.add_line_edit("Objetivo de error", "0.1")
+        tab.add_line_edit("Polo","-0.1")
+        tab.add_line_edit("s*","-4+3j")
+        tab.add_text_edit("Resultado")
+
+        tab = self.tabs.add("Proporcional Integrativo")
+        tab.add_line_edit("FdT", "1/(s^3+3*s^2+2*s+1)")
+        tab.add_line_edit("Objetivo de error", "4")
+        tab.add_line_edit("s*","-4+3j")
+        tab.add_text_edit("Resultado")
+
+        tab = self.tabs.add("Bode")
+        tab.add_line_edit("FdT", "1/(s+2)/(s+1)")
         tab.add_text_edit("Resultado")
 
         for k,v in self.tabs.tabs.items():
@@ -182,55 +232,67 @@ class Form(QDialog):
 
             text = self.tab.tabText(self.tab.currentIndex())
             tab = self.tabs.tabs[text]
+            try:
+                if text == "Lugar de las raíces":
+                    limit = tab.get("Ganancia")
+                    if limit is not None:
+                        resolver.root_locus(tab.get("FdT"), float(limit))
+                    else:
+                        resolver.root_locus(tab.get("FdT"))
+                elif text == "Escalón":
+                    resolver.step_response(tab.get("FdT"))
+                    tab.set("Resultado", f.getvalue())
+                elif text == "Bode":
+                    resolver.asbode(tab.get("FdT"),6)
+                    tab.set("Resultado", f.getvalue())
+                elif text == "Zona Válida":
+                    tp_gt = float(tab.getf("Tp >"))
+                    tp_lt = float(tab.getf("Tp <"))
+                    tp = -tp_lt if tp_lt!=0 else tp_gt
+                    resolver.valid_zone(tab.getf("Ts98% <"),tab.getf("S% <"), tp , 0 , 0)
+                    tab.set("Resultado", f.getvalue())
 
-            if text == "Lugar de las raíces":
-                limit = tab.get("Ganancia")
-                if limit is not None:
-                    resolver.root_locus(tab.get("FdT"), float(limit))
-                else:
-                    resolver.root_locus(tab.get("FdT"))
-            elif text == "Escalón":
-                resolver.step_response(tab.get("FdT"))
-                tab.set("Resultado", f.getvalue())
-            elif text == "Bode":
-                resolver.asbode(tab.get("FdT"),6)
-                tab.set("Resultado", f.getvalue())
-            elif text == "Zona Válida":
-                tp = tab.getf("Tp >") - tab.getf("Tp <")
-                resolver.valid_zone(tab.getf("Ts <"),tab.getf("S% <"), tp , 0 , 0)
-                tab.set("Resultado", f.getvalue())
+                elif text == "Routh":
+                    resolver.routh(tab.get("FdT"))
+                    tab.set("Resultado", f.getvalue())
+                elif text == "Red de Adelanto":
+                    resolver.compute_controller(tab.get("FdT"), tab.get("s*"), tab.get("Cero"))
+                    tab.set("Resultado", f.getvalue())
+                elif text == "Proporcional Derivativo":
+                    resolver.compute_controller(tab.get("FdT"), tab.get("s*"), None)
+                    tab.set("Resultado", f.getvalue())
+                elif text == "Todo Lugar de las raíces":
+                    resolver.root_locus_angles(tab.get("FdT"))
+                    resolver.rupture_points(tab.get("FdT"))
+                    print("")
+                    a, b, c = resolver.asynt(tab.get("FdT"))
+                    resolver.root_locus(tab.get("FdT"), asynt=[a, b], limit=tab.geti("K Max"))
+                    tab.set("Resultado", f.getvalue())
+                elif text == "Red de Retardo":
+                    resolver.compensate_error(tab.get("FdT"),
+                                              tab.get("Objetivo de error"),
+                                              tab.get("Polo"),
+                                              tab.get("s*"))
+                    tab.set("Resultado", f.getvalue())
+                elif text == "Proporcional Integrativo":
+                    resolver.compensate_error(tab.get("FdT"),
+                                              tab.get("Objetivo de error"),
+                                              None,
+                                              tab.get("s*"))
+                    tab.set("Resultado", f.getvalue())
+                elif text == "Sistemas de Ecuaciones":
 
-            elif text == "Routh":
-                resolver.routh(tab.get("FdT"))
-                tab.set("Resultado", f.getvalue())
-            elif text == "Controlador":
-                resolver.compute_controller(tab.get("FdT"), tab.get("s*"), tab.get("Cero"))
-                tab.set("Resultado", f.getvalue())
-            elif text == "Todo Lugar de las raíces":
-                resolver.root_locus_angles(tab.get("FdT"))
-                resolver.rupture_points(tab.get("FdT"))
-                print("")
-                a, b, c = resolver.asynt(tab.get("FdT"))
-                resolver.root_locus(tab.get("FdT"), asynt=[a, b], limit=tab.geti("K Max"))
-                tab.set("Resultado", f.getvalue())
-            elif text == "Error":
-                resolver.compensate_error(tab.get("FdT"),
-                                          tab.get("Objetivo de error"),
-                                          tab.get("Polo"),
-                                          tab.get("s*"))
-                tab.set("Resultado", f.getvalue())
-            elif text == "Sistemas de Ecuaciones":
+                    eqs = []
+                    vars = tab.get("Variables").split(",")
+                    for i in range(tab.count()-3):
+                        eq = tab.get("eq" + str(i + 1))
+                        if eq is not None:
+                            eqs.append(eq)
+                    resolver.solve_equation_system(tab.get("Entrada"), vars, eqs)
 
-                eqs = []
-                vars = tab.get("Variables").split(",")
-                for i in range(tab.count()-3):
-                    eq = tab.get("eq" + str(i + 1))
-                    if eq is not None:
-                        eqs.append(eq)
-                resolver.solve_equation_system(tab.get("Entrada"), vars, eqs)
-
-                tab.set("Resultado", f.getvalue())
-
+                    tab.set("Resultado", f.getvalue())
+            except:
+                tab.set("Resultado", "Error en los datos de entrada o datos no válidos para este cómputo")
         for k,v in self.tabs.tabs.items():
             v.save()
 

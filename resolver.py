@@ -62,7 +62,7 @@ def asynt(poly):
         print("Ángulos: {}".format(angles))
         return numb_asynt, poc, angles
 
-def valid_zone(ts, s_perc, tp, xmax, ymax):
+def valid_zone(ts, s_perc, tp, xmax, ymax, verb=True):
     if s_perc > 0:
         zeta = -math.log(s_perc/100)/math.sqrt(math.pi*math.pi+math.log(s_perc/100)*math.log(s_perc/100))
         angle = math.acos(zeta)
@@ -81,32 +81,30 @@ def valid_zone(ts, s_perc, tp, xmax, ymax):
     xmax = max(xmax, zwn + 5, -x1)
 
     if angle > 0:
-
+        verb and print("S% <= {:.4g} %".format(s_perc))
         y_max_angle = xmax * math.tan(angle)
         x_cross_wd = math.fabs(wd) / math.tan(angle)
         xmax = max(xmax, x_cross_wd+5)
         ymax = max(ymax, y_max_angle+5)
 
         if zwn > 0:
+            verb and print("Ts <= {:.4g} s".format(ts))
             y_zwn = zwn * math.tan(angle)
-            print(x_cross_wd, zwn)
             if wd >= 0:
-
+                verb and print("Tp >= {:.4g} s".format(tp))
                 if wd == 0 or wd > y_max_angle or x_cross_wd > xmax:
                     plt.fill_between([-zwn, -xmax], [-y_zwn, -y_max_angle], [y_zwn, y_max_angle], alpha=0.5)
-                    print("b")
                 else:
                     if x_cross_wd < zwn:
                         plt.fill_between([-zwn, -xmax], [-wd, -wd], [wd, wd], alpha=0.5)
                     else:
                         plt.fill_between([-zwn, -x_cross_wd, -xmax], [-y_zwn, -wd, -wd], [y_zwn, wd, wd], alpha=0.5)
             else:
+                verb and print("Tp <= {:.4g} s".format(-tp))
                 wd = -wd
                 if wd > y_max_angle or x_cross_wd > xmax:
-                    print("b")
                     pass
                 elif x_cross_wd > zwn:
-                    print("c")
                     plt.fill_between([-x_cross_wd, -xmax], [wd, wd], [wd, y_max_angle], alpha=0.5)
                     plt.fill_between([-x_cross_wd, -xmax], [-wd, -wd], [-wd, -y_max_angle], alpha=0.5)
                 else:
@@ -114,11 +112,13 @@ def valid_zone(ts, s_perc, tp, xmax, ymax):
                     plt.fill_between([-zwn, -xmax], [-wd, -wd], [-y_zwn, -y_max_angle], alpha=0.5)
         else:
             if wd > 0:
+                verb and print("Tp >= {:.4g} s".format(-tp))
                 if x_cross_wd > xmax:
                     plt.fill_between([0, -xmax], [0, y_max_angle], [0, -y_max_angle], alpha=0.5)
                 else:
                     plt.fill_between([0, -x_cross_wd, -xmax], [0, wd, wd], [0, -wd, -wd], alpha=0.5)
             else:
+                verb and print("Tp <= {:.4g} s".format(-tp))
                 wd = -wd
                 if x_cross_wd > xmax:
                     pass
@@ -127,9 +127,12 @@ def valid_zone(ts, s_perc, tp, xmax, ymax):
                     plt.fill_between([-x_cross_wd, -xmax], [-wd, -wd], [-wd, -y_max_angle], alpha=0.5)
     else: #angle == 0
         if zwn >= 0:
+            verb and print("Ts <= {:.4g} s".format(ts))
             if wd > 0:
+                verb and print("Tp >= {:.4g} s".format(tp))
                 plt.fill_between([-zwn, -xmax], [wd, wd], [-wd, -wd], alpha=0.5)
             else:
+                verb and print("Tp <= {:.4g} s".format(tp))
                 wd=-wd
                 plt.fill_between([-zwn, -xmax], [wd, wd], [ymax, ymax], alpha=0.5)
                 plt.fill_between([-zwn, -xmax], [-wd, -wd], [-ymax, -ymax], alpha=0.5)
@@ -336,7 +339,7 @@ def compute_controller(planta, s_star, cero=None):
     #return ctrl
 
 
-def step_response(fdt):
+def step_response(fdt, verb=True):
     plt.figure()
     tf_ctrl = text_to_tf(fdt)
     t, y = co.step_response(tf_ctrl)
@@ -356,6 +359,7 @@ def step_response(fdt):
 
         plt.plot([0, t[-1]], [tf_ctrl.dcgain(), tf_ctrl.dcgain()], 'g')
         plt.text(0, tf_ctrl.dcgain()*1.01, "mu: {:.2f}".format(tf_ctrl.dcgain()))
+        verb and print("mu: {:.4g}".format(tf_ctrl.dcgain()))
 
         if len(tf_ctrl.den[0][0]) == 2:
             # Primer orden
@@ -378,6 +382,7 @@ def step_response(fdt):
             i = find_time_index_by_time(4/zwn)
             plt.plot([t[i], t[i]], [0, y[i]], 'r')
             plt.text(t[i] * 1.01, 0, "Ts98%: {:.2f}s".format(t[i]))
+            verb and print("Ts98%: {:.4g}".format(t[i]))
 
             tp = math.pi / wd
             i = find_time_index_by_time(tp)
@@ -385,6 +390,9 @@ def step_response(fdt):
             plt.plot([0, t[i]], [y[i], y[i]], 'y')
             plt.text(t[i],y[i]*1.01, "S%: {:.2f}%".format((y[i]-tf_ctrl.dcgain())/tf_ctrl.dcgain()*100))
             plt.text(t[i]*1.01, 0, "Tp: {:.2f}s".format(tp))
+
+            verb and print("S%: {:.4g}".format((y[i]-tf_ctrl.dcgain())/tf_ctrl.dcgain()*100))
+            verb and print("Tp: {:.4g}".format(tp))
 
     plt.plot(t, y)
     plt.show(block=blocking)
