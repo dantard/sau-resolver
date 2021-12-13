@@ -2,6 +2,7 @@
 
 import sys
 
+import numpy as np
 from matplotlib import pyplot as plt
 import control as co
 import sympy as sp
@@ -10,11 +11,15 @@ from sympy import *
 import builtins as __builtin__
 
 verbose = True
-
+blocking = True
 
 def set_verbose(val):
     global verbose
     verbose = val
+
+def set_blocking(val):
+    global blocking
+    blocking = val
 
 
 def print(*args, **kwargs):
@@ -57,7 +62,7 @@ def asynt(poly):
         print("Ángulos: {}".format(angles))
         return numb_asynt, poc, angles
 
-def valid_zone(ts, s_perc, tp, xmax, ymax):
+def valid_zone(ts, s_perc, tp, xmax, ymax, verb=True):
     if s_perc > 0:
         zeta = -math.log(s_perc/100)/math.sqrt(math.pi*math.pi+math.log(s_perc/100)*math.log(s_perc/100))
         angle = math.acos(zeta)
@@ -76,32 +81,30 @@ def valid_zone(ts, s_perc, tp, xmax, ymax):
     xmax = max(xmax, zwn + 5, -x1)
 
     if angle > 0:
-
+        verb and print("S% <= {:.4g} %".format(s_perc))
         y_max_angle = xmax * math.tan(angle)
         x_cross_wd = math.fabs(wd) / math.tan(angle)
         xmax = max(xmax, x_cross_wd+5)
         ymax = max(ymax, y_max_angle+5)
 
         if zwn > 0:
+            verb and print("Ts <= {:.4g} s".format(ts))
             y_zwn = zwn * math.tan(angle)
-            print(x_cross_wd, zwn)
             if wd >= 0:
-
+                verb and print("Tp >= {:.4g} s".format(tp))
                 if wd == 0 or wd > y_max_angle or x_cross_wd > xmax:
                     plt.fill_between([-zwn, -xmax], [-y_zwn, -y_max_angle], [y_zwn, y_max_angle], alpha=0.5)
-                    print("b")
                 else:
                     if x_cross_wd < zwn:
                         plt.fill_between([-zwn, -xmax], [-wd, -wd], [wd, wd], alpha=0.5)
                     else:
                         plt.fill_between([-zwn, -x_cross_wd, -xmax], [-y_zwn, -wd, -wd], [y_zwn, wd, wd], alpha=0.5)
             else:
+                verb and print("Tp <= {:.4g} s".format(-tp))
                 wd = -wd
                 if wd > y_max_angle or x_cross_wd > xmax:
-                    print("b")
                     pass
                 elif x_cross_wd > zwn:
-                    print("c")
                     plt.fill_between([-x_cross_wd, -xmax], [wd, wd], [wd, y_max_angle], alpha=0.5)
                     plt.fill_between([-x_cross_wd, -xmax], [-wd, -wd], [-wd, -y_max_angle], alpha=0.5)
                 else:
@@ -109,11 +112,13 @@ def valid_zone(ts, s_perc, tp, xmax, ymax):
                     plt.fill_between([-zwn, -xmax], [-wd, -wd], [-y_zwn, -y_max_angle], alpha=0.5)
         else:
             if wd > 0:
+                verb and print("Tp >= {:.4g} s".format(-tp))
                 if x_cross_wd > xmax:
                     plt.fill_between([0, -xmax], [0, y_max_angle], [0, -y_max_angle], alpha=0.5)
                 else:
                     plt.fill_between([0, -x_cross_wd, -xmax], [0, wd, wd], [0, -wd, -wd], alpha=0.5)
             else:
+                verb and print("Tp <= {:.4g} s".format(-tp))
                 wd = -wd
                 if x_cross_wd > xmax:
                     pass
@@ -122,9 +127,12 @@ def valid_zone(ts, s_perc, tp, xmax, ymax):
                     plt.fill_between([-x_cross_wd, -xmax], [-wd, -wd], [-wd, -y_max_angle], alpha=0.5)
     else: #angle == 0
         if zwn >= 0:
+            verb and print("Ts <= {:.4g} s".format(ts))
             if wd > 0:
+                verb and print("Tp >= {:.4g} s".format(tp))
                 plt.fill_between([-zwn, -xmax], [wd, wd], [-wd, -wd], alpha=0.5)
             else:
+                verb and print("Tp <= {:.4g} s".format(tp))
                 wd=-wd
                 plt.fill_between([-zwn, -xmax], [wd, wd], [ymax, ymax], alpha=0.5)
                 plt.fill_between([-zwn, -xmax], [-wd, -wd], [-ymax, -ymax], alpha=0.5)
@@ -142,7 +150,7 @@ def valid_zone(ts, s_perc, tp, xmax, ymax):
             plt.plot([0,-xmax], [wd, wd])
             plt.plot([0,-xmax], [-wd, -wd])
 
-    plt.show(block=True)
+    plt.show(block=blocking)
 
 
 def rupture_points(poly, verb=True):
@@ -333,7 +341,8 @@ def compute_controller(planta, s_star, cero=None):
     #return ctrl
 
 
-def step_response(fdt):
+def step_response(fdt, verb=True):
+    plt.figure()
     tf_ctrl = text_to_tf(fdt)
     t, y = co.step_response(tf_ctrl)
 
@@ -352,6 +361,7 @@ def step_response(fdt):
 
         plt.plot([0, t[-1]], [tf_ctrl.dcgain(), tf_ctrl.dcgain()], 'g')
         plt.text(0, tf_ctrl.dcgain()*1.01, "mu: {:.2f}".format(tf_ctrl.dcgain()))
+        verb and print("mu: {:.4g}".format(tf_ctrl.dcgain()))
 
         if len(tf_ctrl.den[0][0]) == 2:
             # Primer orden
@@ -374,6 +384,7 @@ def step_response(fdt):
             i = find_time_index_by_time(4/zwn)
             plt.plot([t[i], t[i]], [0, y[i]], 'r')
             plt.text(t[i] * 1.01, 0, "Ts98%: {:.2f}s".format(t[i]))
+            verb and print("Ts98%: {:.4g}".format(t[i]))
 
             tp = math.pi / wd
             i = find_time_index_by_time(tp)
@@ -382,8 +393,11 @@ def step_response(fdt):
             plt.text(t[i],y[i]*1.01, "S%: {:.2f}%".format((y[i]-tf_ctrl.dcgain())/tf_ctrl.dcgain()*100))
             plt.text(t[i]*1.01, 0, "Tp: {:.2f}s".format(tp))
 
+            verb and print("S%: {:.4g}".format((y[i]-tf_ctrl.dcgain())/tf_ctrl.dcgain()*100))
+            verb and print("Tp: {:.4g}".format(tp))
+
     plt.plot(t, y)
-    plt.show()
+    plt.show(block=blocking)
 
 
 def root_locus_angles(fdt):
@@ -416,6 +430,16 @@ def root_locus_angles(fdt):
     if not there_are_angles:
         print("No hay polos o ceros con parte imaginaria no nula")
 
+
+def dc_gain_any_type(fdt):
+    num = fdt.num[0][0]
+    den = fdt.den[0][0]
+
+    fdt_type = 0
+    while den[len(den)-1] == 0:
+        den = den[0:-1]
+    gain = num[len(num)-1]/den[len(den)-1]
+    return gain
 
 def compensate_error(fdt, obj=None, pole=None, s_star=None, verbose=True):
 
@@ -556,7 +580,7 @@ def root_locus(fdt, limit=0, asynt=None):
         real_part.append(pol.real)
         imag_part.append(pol.imag)
 
-    plt.show(block=True)
+    plt.show(block=blocking)
 
 def solve_equation_system(inp, vars, eqs):
 
@@ -588,4 +612,240 @@ def solve_equation_system(inp, vars, eqs):
         print("")
         print("")
         print("")
+
+class Singularity:
+    def __init__(self, type, val):
+        self.type = type
+        self.val = val
+        self.m = []
+        self.v = []
+    def append_m(self,v):
+        self.m.append(v)
+
+    def append_v(self,v):
+        self.v.append(v)
+
+def print_table(module, m_important_freq):
+    module.sort(key=lambda x: x.val)
+    print("     ", end ="")
+#    print(m_important_freq)
+    for i in m_important_freq:
+        print("{:10g}".format(i), end ="")
+    print("")
+    for k in range(len(m_important_freq) * 10 + 5):
+        print("-", end="")
+    print("")
+
+    for i in module:
+        if i.type != -1:
+            print("s={:5g}".format(-i.val), end="")
+        else:
+            for k in range(len(m_important_freq)*10+5):
+                print("-", end="")
+
+            print("\nSuma   ", end="")
+        print("       ", end = "")
+        for j in i.m[:-1]:
+            print("|  {:3g}    ".format(j), end="")
+        print("|")
+    print("")
+
+#    print("     ", end ="")
+
+
+
+#f="27*(s+3)/(s+1)/(s+20)/s"
+def asbode(f, plot=1):
+    fdt=text_to_tf(f)
+
+    zeros = [-z for z in fdt.zero()]
+    poles = [-p for p in fdt.pole()]
+
+    zeros.sort()
+    poles.sort()
+
+    sing = [z for z in zeros if z!=0] + [p for p in poles if p!=0]
+    sing.sort()
+
+    min = sing[0]/10
+    max = sing[-1]*10
+    max_pwr = None
+    min_pwr = None
+
+    for pwr in range(-6,6):
+        if max==math.pow(10,pwr):
+            max_pwr = pwr+1
+            break
+        elif max < math.pow(10,pwr):
+            max_pwr = pwr
+            break
+
+    for pwr in range(-6,6):
+        if min==math.pow(10,pwr):
+            min_pwr = pwr-1
+            break
+        elif min < math.pow(10,pwr):
+            min_pwr = pwr-1
+            break
+
+    min=pow(10,min_pwr)
+    max=pow(10,max_pwr)
+
+    m_important_freq = [min,max]
+    p_important_freq = [min,max]
+
+    for i in zeros:
+        if i!=0:
+            m_important_freq.append(i)
+            p_important_freq.append(i/10)
+            p_important_freq.append(i*10)
+
+    for i in poles:
+        if i!= 0:
+            m_important_freq.append(i)
+            p_important_freq.append(i/10)
+            p_important_freq.append(i*10)
+
+    m_important_freq.sort()
+    p_important_freq.sort()
+
+    all=[]
+    mallv=[]
+    module = []
+    for cut in poles:
+        p = Singularity(0,cut)
+        for freq in m_important_freq:
+            if cut == 0:
+                p.append_m(-20)
+                p.append_v(20*math.log10(1/freq))
+            elif freq>=cut:
+                p.append_m(-20)
+                p.append_v(-20*math.log10(freq/cut))
+            else:
+                p.append_m(0)
+                p.append_v(0)
+        module.append(p)
+        all.append(p.m)
+        mallv.append(p.v)
+
+
+    for cut in zeros:
+        z = Singularity(1,cut)
+        for freq in m_important_freq:
+            if cut == 0:
+                p.append_m(-20)
+                p.append_v(20*math.log10(freq))
+            elif freq>=cut:
+                z.append_m(20)
+                z.append_v(20*math.log10(freq/cut))
+            else:
+                z.append_m(0)
+                z.append_v(0)
+        module.append(z)
+        all.append(z.m)
+        mallv.append(z.v)
+
+
+    res = Singularity(-1,1e6)
+    res.m = [sum(i) for i in zip(*all)]
+    module.append(res)
+
+    print("TABLA de GANANCIAS\n")
+
+    print_table(module,m_important_freq)
+
+    phase = []
+
+    all = []
+    allv = []
+    for cut in poles:
+        s = Singularity(0,cut)
+        for freq in p_important_freq:
+            if cut == 0:
+                s.append_m(0)
+                s.append_v(-90)
+            elif freq>=0.099999*cut and freq<10*cut:
+                s.append_m(-45)
+                s.append_v(-45*math.log10(freq/cut)-45)
+            elif freq>=10*cut:
+                s.append_m(0)
+                s.append_v(-90)
+            else:
+                s.append_m(0)
+                s.append_v(0)
+        phase.append(s)
+        all.append(s.m)
+        allv.append(s.v)
+
+    for cut in zeros:
+        s = Singularity(1,cut)
+        for freq in p_important_freq:
+            if cut == 0:
+                s.append_m(0)
+                s.append_v(90)
+            elif freq>=0.099999*cut and freq<10*cut:
+                s.append_m(+45)
+                s.append_v(+45*math.log10(freq/cut)+45)
+            elif freq>=10*cut:
+                s.append_m(0)
+                s.append_v(90)
+            else:
+                s.append_m(0)
+                s.append_v(0)
+        phase.append(s)
+        all.append(s.m)
+        allv.append(s.v)
+
+    res = Singularity(-1,1e6)
+    res.m = [sum(i) for i in zip(*all)]
+    phase.append(res)
+
+    print("TABLA de FASE\n")
+
+    print_table(phase,p_important_freq)
+
+    gain = 20 * math.log10(dc_gain_any_type(fdt))
+    print("GANANCIA INICIAL: {:.4g} dB".format(gain))
+    print("FASE INICIAL    : {:.4g} grados\n".format(phase[0].v[0]))
+
+    if plot > 0:
+        plt.figure()
+        w=np.logspace(min_pwr,max_pwr,1000)
+        mag,phase,omega = co.bode(fdt,w,dB=True)
+
+        ax1,ax2 = plt.gcf().axes     # get subplot axes
+        lines1 = ax1.get_lines()
+        lines2 = ax2.get_lines()
+
+        if plot & 2:
+            lines1[0].set_visible(False)
+            lines2[0].set_visible(False)
+
+        plt.sca(ax1)
+        resv = [sum(i)+gain for i in zip(*mallv)]
+        plt.plot(m_important_freq, resv)
+
+        if plot & 4:
+            plt.scatter(m_important_freq, resv)
+
+        plt.sca(ax2)
+        resv = [sum(i) for i in zip(*allv)]
+        plt.plot(p_important_freq, resv)
+        if plot & 4:
+            plt.scatter(p_important_freq, resv)
+
+        ymin = 1e6
+        idx = -1
+        #print(mag,omega)
+        for i in range(len(mag)):
+            mag_db = math.fabs(20*math.log10(mag[i]))
+            if mag_db < ymin:
+                ymin = mag_db
+                idx = i
+        if idx >=0:
+            print("FRECUENCIA de CORTE: {:.4g} rad/s, Mf: {:.4g} grados".format(omega[idx], 180+180*phase[idx]/math.pi))
+        else:
+            print("NO HAY FRECUENCIA de CORTE")
+
+        plt.show(block=blocking)
 
