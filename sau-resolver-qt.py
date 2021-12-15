@@ -54,6 +54,7 @@ class Tab():
     def __init__(self, name="Tab"):
         self.layout = QVBoxLayout()
         self.layout2 = QFormLayout()
+        self.layout.addLayout(self.layout2)
         self.tab = QWidget()
         self.widgets = []
         self.dic = {}
@@ -70,7 +71,6 @@ class Tab():
 
     def append(self, widget, name):
         widget.setFont(self.my_font)
-        self.layout.addLayout(self.layout2)
         self.layout2.addRow(QLabel(name), widget)
         #self.layout2.addWidget(widget)
         self.widgets.append(widget)
@@ -150,17 +150,8 @@ class Form(QDialog):
 
         self.tabs = Tabs()
 
-        tab = self.tabs.add("Sistemas de Ecuaciones")
-        tab.add_line_edit("Entrada", "Vr")
-        tab.add_line_edit("Variables", "T,Ve,I,W")
-        tab.add_line_edit("eq1", "Vr-R*I-L*s*I-Ve=0")
-        tab.add_line_edit("eq2", "T-J*s*W-B*W=0")
-        tab.add_line_edit("eq3", "Ve-Ke*W=0")
-        tab.add_line_edit("eq4", "T-Ki*I=0")
-        tab.add_line_edit("eq5")
-        tab.add_line_edit("eq6")
-        tab.add_line_edit("eq7")
-        tab.add_line_edit("eq8")
+        tab = self.tabs.add("Raíces Polinomio")
+        tab.add_line_edit("Polinomio", "s^2+s+1")
         tab.add_text_edit("Resultado")
 
         tab = self.tabs.add("Escalón")
@@ -232,68 +223,79 @@ class Form(QDialog):
 
             text = self.tab.tabText(self.tab.currentIndex())
             tab = self.tabs.tabs[text]
-            try:
-                if text == "Lugar de las raíces":
-                    limit = tab.get("Ganancia")
-                    if limit is not None:
-                        resolver.root_locus(tab.get("FdT"), float(limit))
-                    else:
-                        resolver.root_locus(tab.get("FdT"))
-                elif text == "Escalón":
-                    resolver.step_response(tab.get("FdT"))
-                    tab.set("Resultado", f.getvalue())
-                elif text == "Bode":
-                    resolver.asbode(tab.get("FdT"),6)
-                    tab.set("Resultado", f.getvalue())
-                elif text == "Zona Válida":
-                    tp_gt = float(tab.getf("Tp >"))
-                    tp_lt = float(tab.getf("Tp <"))
-                    tp = -tp_lt if tp_lt!=0 else tp_gt
-                    resolver.valid_zone(tab.getf("Ts98% <"),tab.getf("S% <"), tp , 0 , 0)
-                    tab.set("Resultado", f.getvalue())
+#            try:
+            if text == "Lugar de las raíces":
+                limit = tab.get("Ganancia")
+                if limit is not None:
+                    resolver.root_locus(tab.get("FdT"), float(limit))
+                else:
+                    resolver.root_locus(tab.get("FdT"))
+            elif text == "Escalón":
+                resolver.step_response(tab.get("FdT"))
+                tab.set("Resultado", f.getvalue())
+            elif text == "Raíces Polinomio":
+                resolver.roots(tab.get("Polinomio"))
+                tab.set("Resultado", f.getvalue())
+            elif text == "Bode":
+                resolver.asbode(tab.get("FdT"),6)
+                tab.set("Resultado", f.getvalue())
+            elif text == "Zona Válida":
+                tp_gt = float(tab.getf("Tp >"))
+                tp_lt = float(tab.getf("Tp <"))
+                tp = -tp_lt if tp_lt!=0 else tp_gt
+                resolver.valid_zone(tab.getf("Ts98% <"),tab.getf("S% <"), tp , 0 , 0)
+                tab.set("Resultado", f.getvalue())
 
-                elif text == "Routh":
-                    resolver.routh(tab.get("FdT"))
-                    tab.set("Resultado", f.getvalue())
-                elif text == "Red de Adelanto":
-                    resolver.compute_controller(tab.get("FdT"), tab.get("s*"), tab.get("Cero"))
-                    tab.set("Resultado", f.getvalue())
-                elif text == "Proporcional Derivativo":
-                    resolver.compute_controller(tab.get("FdT"), tab.get("s*"), None)
-                    tab.set("Resultado", f.getvalue())
-                elif text == "Todo Lugar de las raíces":
-                    resolver.root_locus_angles(tab.get("FdT"))
-                    resolver.rupture_points(tab.get("FdT"))
-                    print("")
-                    a, b, c = resolver.asynt(tab.get("FdT"))
+            elif text == "Routh":
+                resolver.routh(tab.get("FdT"))
+                tab.set("Resultado", f.getvalue())
+            elif text == "Red de Adelanto":
+                resolver.compute_controller(tab.get("FdT"), tab.get("s*"), tab.get("Cero"))
+                tab.set("Resultado", f.getvalue())
+            elif text == "Proporcional Derivativo":
+                resolver.compute_controller(tab.get("FdT"), tab.get("s*"), None)
+                tab.set("Resultado", f.getvalue())
+            elif text == "Todo Lugar de las raíces":
+                print("Puntos de ruptúra")
+                resolver.rupture_points(tab.get("FdT"))
+                print("\nAsíntotas")
+                a, b, c = resolver.asynt(tab.get("FdT"))
+                if a > 0:
                     resolver.root_locus(tab.get("FdT"), asynt=[a, b], limit=tab.geti("K Max"))
-                    tab.set("Resultado", f.getvalue())
-                elif text == "Red de Retardo":
-                    resolver.compensate_error(tab.get("FdT"),
-                                              tab.get("Objetivo de error"),
-                                              tab.get("Polo"),
-                                              tab.get("s*"))
-                    tab.set("Resultado", f.getvalue())
-                elif text == "Proporcional Integrativo":
-                    resolver.compensate_error(tab.get("FdT"),
-                                              tab.get("Objetivo de error"),
-                                              None,
-                                              tab.get("s*"))
-                    tab.set("Resultado", f.getvalue())
-                elif text == "Sistemas de Ecuaciones":
+                else:
+                    resolver.root_locus(tab.get("FdT"), asynt=None, limit=tab.geti("K Max"))
+                print("\nÁngulos de partida y llegada")
+                resolver.root_locus_angles(tab.get("FdT"))
 
-                    eqs = []
-                    vars = tab.get("Variables").split(",")
-                    for i in range(tab.count()-3):
-                        eq = tab.get("eq" + str(i + 1))
-                        if eq is not None:
-                            eqs.append(eq)
-                    resolver.solve_equation_system(tab.get("Entrada"), vars, eqs)
+                tab.set("Resultado", f.getvalue())
+            elif text == "Red de Retardo":
+                resolver.compensate_error(tab.get("FdT"),
+                                          tab.get("Objetivo de error"),
+                                          tab.get("Polo"),
+                                          tab.get("s*"))
+                tab.set("Resultado", f.getvalue())
+            elif text == "Proporcional Integrativo":
+                resolver.compensate_error(tab.get("FdT"),
+                                          tab.get("Objetivo de error"),
+                                          None,
+                                          tab.get("s*"))
+                tab.set("Resultado", f.getvalue())
+            elif text == "Sistemas de Ecuaciones":
 
-                    tab.set("Resultado", f.getvalue())
-            except:
-                tab.set("Resultado", "Error en los datos de entrada o datos no válidos para este cómputo")
-        for k,v in self.tabs.tabs.items():
+                eqs = []
+                vars = tab.get("Variables").split(",")
+                for i in range(tab.count()-3):
+                    eq = tab.get("eq" + str(i + 1))
+                    if eq is not None:
+                        eqs.append(eq)
+                resolver.solve_equation_system(tab.get("Entrada"), vars, eqs)
+
+                tab.set("Resultado", f.getvalue())
+#            except Exception as e:
+#                print(sys.exc_info()[2])
+#                tab.set("Resultado", "Error en los datos de entrada o datos no válidos para este cómputo\n" + str(e))
+
+        for k, v in self.tabs.tabs.items():
             v.save()
 
         with open('sau-resolver-qt.ini', 'w') as configfile:

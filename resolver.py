@@ -61,6 +61,8 @@ def asynt(poly):
             angles.append(180*(2*i+1)/numb_asynt)
         print("Ángulos: {}".format(angles))
         return numb_asynt, poc, angles
+    else:
+        return 0, 0, 0
 
 def valid_zone(ts, s_perc, tp, xmax, ymax, verb=True):
     if s_perc > 0:
@@ -170,8 +172,8 @@ def rupture_points(poly, verb=True):
     real_parts.sort()
     f = num*diff(den) - diff(num)*den
 
-    verb and print("N'D - ND' = 0 -> {} = 0 ".format(str(f).replace("**", "^")))
-    raices = solve(f)
+    verb and print("N'D - ND' = 0  =>  {} = 0".format(str(simplify(f)).replace("**", "^")))
+    raices = solve(simplify(f))
     verb and print("Raíces -> {}".format([r.evalf(3) for r in raices]))
     valid = []
     for r in raices:
@@ -188,7 +190,7 @@ def rupture_points(poly, verb=True):
                 verb and print("Punto de ruptura en s={:.3g} NO válido".format(sp.re(r).evalf()))
             else:
                 verb and print("Punto de ruptura en s={:.3g} válido".format(sp.re(r).evalf()))
-                valid.append(v.evalf())
+                valid.append(r.evalf())
         else:
             print("Punto de ruptura en s={} NO válido".format(r.evalf(3)))
 
@@ -580,6 +582,10 @@ def root_locus(fdt, limit=0, asynt=None):
         real_part.append(pol.real)
         imag_part.append(pol.imag)
 
+    rows = co.zero(tf_ctrl)
+    for zer in rows:
+        plt.scatter(zer.real, zer.imag, marker="o", color='green', facecolors='none')
+
     plt.show(block=blocking)
 
 def solve_equation_system(inp, vars, eqs):
@@ -658,8 +664,8 @@ def print_table(module, m_important_freq):
 def asbode(f, plot=1):
     fdt=text_to_tf(f)
 
-    zeros = [-z for z in fdt.zero()]
-    poles = [-p for p in fdt.pole()]
+    zeros = [-z.real for z in fdt.zero()]
+    poles = [-p.real for p in fdt.pole()]
 
     zeros.sort()
     poles.sort()
@@ -706,6 +712,8 @@ def asbode(f, plot=1):
             p_important_freq.append(i/10)
             p_important_freq.append(i*10)
 
+    m_important_freq = list(set(m_important_freq))
+    p_important_freq = list(set(p_important_freq))
     m_important_freq.sort()
     p_important_freq.sort()
 
@@ -713,12 +721,12 @@ def asbode(f, plot=1):
     mallv=[]
     module = []
     for cut in poles:
-        p = Singularity(0,cut)
+        p = Singularity(0, cut)
         for freq in m_important_freq:
             if cut == 0:
                 p.append_m(-20)
                 p.append_v(20*math.log10(1/freq))
-            elif freq>=cut:
+            elif freq >= cut:
                 p.append_m(-20)
                 p.append_v(-20*math.log10(freq/cut))
             else:
@@ -805,34 +813,70 @@ def asbode(f, plot=1):
     print_table(phase,p_important_freq)
 
     gain = 20 * math.log10(dc_gain_any_type(fdt))
-    print("GANANCIA INICIAL: {:.4g} dB".format(gain))
-    print("FASE INICIAL    : {:.4g} grados\n".format(phase[0].v[0]))
+    resm = [sum(i) + gain for i in zip(*mallv)]
+    resp = [sum(i) for i in zip(*allv)]
+
+    num_crosses = 0
+    for i in range(len(resm)-1):
+        if resm[i] == 0:
+            wc=m_important_freq[i]
+            num_crosses += 1
+        elif resm[i] > 0 and resm[i+1] < 0:
+            x0 = math.log10(m_important_freq[i])
+            m = module[-1].m[i]
+            F0 = resm[i]
+            wc_dec=(m*x0-F0)/m
+            wc=math.pow(10, wc_dec)
+            num_crosses += 1
+
+    if num_crosses == 1:
+        for i in range(len(p_important_freq)-1):
+            if wc == p_important_freq[i]:
+                phase_at_wc = resp[i]
+            elif wc > p_important_freq[i] and wc < p_important_freq[i+1]:
+                fase=(resp[i+1]-resp[i])*math.log10(wc/p_important_freq[i])/math.log10(p_important_freq[i+1]/p_important_freq[i]) + resp[i]
+                print("Wc = {} Crece entre {} y {} fase {}".format(wc, p_important_freq[i], p_important_freq[i+1],fase))
+
+    print("GANANCIA INICIAL: {:.4g} dB".format(resm[0]))
+    print("FASE INICIAL    : {:.4g} grados\n".format(resp[0]))
 
     if plot > 0:
         plt.figure()
-        w=np.logspace(min_pwr,max_pwr,1000)
-        mag,phase,omega = co.bode(fdt,w,dB=True)
+        w = np.logspace(min_pwr,max_pwr,1000)
+        mag, phase, omega = co.bode(fdt,w,dB=True)
 
-        ax1,ax2 = plt.gcf().axes     # get subplot axes
+        ax1, ax2 = plt.gcf().axes     # get subplot axes
         lines1 = ax1.get_lines()
         lines2 = ax2.get_lines()
+
+        if fase+180 > 0:
+            plt.scatter(wc, 0, color='green')
+
+        else:
+            plt.scatter(wc, 0, color='red')
 
         if plot & 2:
             lines1[0].set_visible(False)
             lines2[0].set_visible(False)
 
         plt.sca(ax1)
-        resv = [sum(i)+gain for i in zip(*mallv)]
-        plt.plot(m_important_freq, resv)
+        plt.plot(m_important_freq, resm)
+
 
         if plot & 4:
-            plt.scatter(m_important_freq, resv)
+            plt.scatter(m_important_freq, resm)
 
         plt.sca(ax2)
-        resv = [sum(i) for i in zip(*allv)]
-        plt.plot(p_important_freq, resv)
+        plt.plot(p_important_freq, resp)
+
+        if fase+180 > 0:
+            plt.plot([wc, wc],[-180, fase], color = 'green')
+        else:
+            plt.plot([wc, wc], [-180, fase] , color = 'red')
+
         if plot & 4:
-            plt.scatter(p_important_freq, resv)
+            plt.scatter(p_important_freq, resp)
+
 
         ymin = 1e6
         idx = -1
@@ -843,9 +887,33 @@ def asbode(f, plot=1):
                 ymin = mag_db
                 idx = i
         if idx >=0:
-            print("FRECUENCIA de CORTE: {:.4g} rad/s, Mf: {:.4g} grados".format(omega[idx], 180+180*phase[idx]/math.pi))
+            print("FRECUENCIA de CRÍTICA: {:.4g} rad/s, Mf: {:.4g} grados".format(omega[idx], 180+180*phase[idx]/math.pi))
         else:
             print("NO HAY FRECUENCIA de CORTE")
 
+        maxp = np.amax(resp)
+        minp = np.amin(resp)
+
+        maxp = int(math.ceil(maxp / 45) * 45)
+        minp = int(math.floor(minp / 45) * 45)
+        ax2.yaxis.set_ticks([])
+        ax2.yaxis.set_ticks(np.arange(minp, maxp+0.1, 45))
+
+        maxm = np.amax(resm)
+        minm = np.amin(resm)
+        maxm = math.ceil(maxm / 20) * 20
+        minm = math.floor(minm / 20) * 20
+
+        ax1.yaxis.set_ticks(np.arange(minm, maxm+0.1, 20))
+
+
         plt.show(block=blocking)
+
+def roots(poly):
+    poly=sp.parse_expr(poly.replace("^","**").replace("=0",""))
+    raices = solve(poly)
+    print("Raíces:")
+    for r in raices:
+        # si es una raíz real
+        print(r.evalf(3))
 
