@@ -816,6 +816,9 @@ def asbode(f, plot=1):
     resm = [sum(i) + gain for i in zip(*mallv)]
     resp = [sum(i) for i in zip(*allv)]
 
+    print("GANANCIA INICIAL: {:.4g} dB".format(resm[0]))
+    print("FASE INICIAL    : {:.4g} grados\n".format(resp[0]))
+
     num_crosses = 0
     for i in range(len(resm)-1):
         if resm[i] == 0:
@@ -835,11 +838,11 @@ def asbode(f, plot=1):
                 phase_at_wc = resp[i]
             elif wc > p_important_freq[i] and wc < p_important_freq[i+1]:
                 fase=(resp[i+1]-resp[i])*math.log10(wc/p_important_freq[i])/math.log10(p_important_freq[i+1]/p_important_freq[i]) + resp[i]
-                print("Wc = {} Crece entre {} y {} fase {}".format(wc, p_important_freq[i], p_important_freq[i+1],fase))
-
-    print("GANANCIA INICIAL: {:.4g} dB".format(resm[0]))
-    print("FASE INICIAL    : {:.4g} grados\n".format(resp[0]))
-
+                #print("Wc = {} Crece entre {} y {} fase {}".format(wc, p_important_freq[i], p_important_freq[i+1],fase))
+                print("\nFREQUENCIA CRITICA wc={:-4g} rad/s".format(wc))
+                print("MÁRGEN de FASE Mf={:-4g} grados".format(fase+180))
+    else:
+        print("\nMÚLTIPLES CRUCES con 0dB")
     if plot > 0:
         plt.figure()
         w = np.logspace(min_pwr,max_pwr,1000)
@@ -850,9 +853,11 @@ def asbode(f, plot=1):
         lines2 = ax2.get_lines()
 
         if fase+180 > 0:
+            plt.sca(ax1)
             plt.scatter(wc, 0, color='green')
 
         else:
+            plt.sca(ax2)
             plt.scatter(wc, 0, color='red')
 
         if plot & 2:
@@ -886,10 +891,10 @@ def asbode(f, plot=1):
             if mag_db < ymin:
                 ymin = mag_db
                 idx = i
-        if idx >=0:
-            print("FRECUENCIA de CRÍTICA: {:.4g} rad/s, Mf: {:.4g} grados".format(omega[idx], 180+180*phase[idx]/math.pi))
-        else:
-            print("NO HAY FRECUENCIA de CORTE")
+        #if idx >=0:
+        #    print("FRECUENCIA de CRÍTICA: {:.4g} rad/s, Mf: {:.4g} grados".format(omega[idx], 180+180*phase[idx]/math.pi))
+        #else:
+        #    print("NO HAY FRECUENCIA de CORTE")
 
         maxp = np.amax(resp)
         minp = np.amin(resp)
