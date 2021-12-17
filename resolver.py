@@ -248,16 +248,16 @@ def routh(polinomio):
         return table, res, changes
 
 
-def compute_controller(planta, s_star, cero=None):
+def compute_controller(planta, s_star, cero=None, verb=True):
     if cero is not None and cero !="0":
-        print("Calculando una RED DE ADELANTO (RA) con cero en s={}".format(cero))
+        verb and print("Calculando una RED DE ADELANTO (RA) con cero en s={}".format(cero))
         planta = "(s-{})*(".format(cero) + planta + ")"
         is_pd = False
     else:
-        print("Calculando un PROPORCIONAL DERIVATIVO (PD)")
+        verb and print("Calculando un PROPORCIONAL DERIVATIVO (PD)")
         is_pd = True
 
-    print("")
+    verb and print("")
 
     looking_for = "cero" if is_pd else "polo"
 
@@ -270,21 +270,30 @@ def compute_controller(planta, s_star, cero=None):
     tf_ctrl = co.tf(num, den)
     poles = co.pole(tf_ctrl)
     zeros = co.zero(tf_ctrl)
-    mu = co.dcgain(tf_ctrl)
 
-    for i in poles:
-        mu = -mu * i
-    for i in zeros:
-        mu = -mu/i
+    #mu = 1#co.dcgain(tf_ctrl)
+
+    #print(tf_ctrl, mu)
+
+    num_gain = tf_ctrl.num[0][0][-1]
+    den_gain = tf_ctrl.den[0][0][-1]
+
+    if den_gain != 0:
+        mu = num_gain/den_gain
+    else:
+        mu = num_gain
 
     s_star = complex(s_star)
+
+    print("in:s_star", s_star)
+    print("in:planta", tf_ctrl)
 
     angle_poles = 0
     mod_poles = 1
     for i in poles:
         angle = math.atan2(s_star.imag, s_star.real - i) * 180 / math.pi
         mod = abs(s_star - i)
-        print("Polo en {:.2f} tiene ángulo {:.2f} grados con s* y módulo {:.2f}".format(i, angle, mod))
+        verb and print("Polo en {:.2f} tiene ángulo {:.2f} grados con s* y módulo {:.2f}".format(i, angle, mod))
         angle_poles += angle
         mod_poles = mod_poles * mod
 
@@ -293,14 +302,14 @@ def compute_controller(planta, s_star, cero=None):
     for i in zeros:
         angle = math.atan2(s_star.imag, s_star.real - i) * 180 / math.pi
         mod = abs(s_star - i)
-        print("Cero en {:.2f} tiene ángulo {:.2f} grados con s* y módulo {:.2f}".format(i, angle, mod))
+        verb and print("Cero en {:.2f} tiene ángulo {:.2f} grados con s* y módulo {:.2f}".format(i, angle, mod))
         angle_zeros += angle
         mod_zeros = mod_zeros * mod
 
     needed = (-180 - angle_zeros + angle_poles)
-    print("")
-    print("Falta fase de {:.2f} grados".format(needed))
-    print("")
+    verb and print("")
+    verb and print("Falta fase de {:.2f} grados".format(needed))
+    verb and print("")
 
     impossible = (is_pd and (needed > 180 or needed < 0)) or \
                         (not is_pd and (needed < -180 or needed > 0))
@@ -325,10 +334,10 @@ def compute_controller(planta, s_star, cero=None):
 
         #gain = gain /dcgain
 
-        print("La posición del " + looking_for + " es {:.2f} y la ganancia {:.2f}".format(sing_pos, gain))
-        print("")
-        print("C(s)=\n{}".format(ctrl))
-    #return ctrl
+        verb and print("La posición del " + looking_for + " es {:.2f} y la ganancia {:.2f}".format(sing_pos, gain))
+        verb and print("")
+        verb and print("C(s)=\n{}".format(ctrl))
+    return gain, ctrl, float(sing_pos)
 
 
 def step_response(fdt):
