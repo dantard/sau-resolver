@@ -6,12 +6,13 @@ set_verbose(True)
 def check_error_one_param():
     if len(sys.argv) < 3:
         print("Use: {} {} <fdt>".format(sys.argv[0], sys.argv[1]))
-        print("Example: {} {} 's^2+2*s+1'".format(sys.argv[0], sys.argv[1]))
+        print("Example: {} {} '1/(s^2+2*s+1)'".format(sys.argv[0], sys.argv[1]))
         sys.exit(0)
 
 
 if len(sys.argv) < 2:
     print("Available commands are:")
+    print("bode")
     print("root_locus")
     print("root_locus_angles")
     print("compute_controller")
@@ -22,6 +23,12 @@ if len(sys.argv) < 2:
 if sys.argv[1] == "root_locus":
     check_error_one_param()
     root_locus(sys.argv[2])
+elif sys.argv[1] == "bode":
+    check_error_one_param()
+    if len(sys.argv) < 4:
+        asbode(sys.argv[2])
+    else:
+        asbode(sys.argv[2], int(sys.argv[3]))
 elif sys.argv[1] == "root_locus_angles":
     check_error_one_param()
     root_locus_angles(sys.argv[2])
