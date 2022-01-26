@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 import sys
+import numbers
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -874,16 +875,16 @@ def asbode(f, plot=1):
             lines2[0].set_visible(False)
 
         plt.sca(ax1)
-        plt.plot(m_important_freq, resm)
+        plt.plot(m_important_freq, resm, 'k')
 
         if plot & 4:
             plt.sca(ax1)
             plt.scatter(m_important_freq, resm)
 
         plt.sca(ax2)
-        plt.plot(p_important_freq, resp)
+        plt.plot(p_important_freq, resp, 'k')
 
-        if fase is not None:
+        if fase is not None and plot & 4:
             if fase + 180 > 0:
                 plt.sca(ax1)
                 plt.scatter(wc, 0, color='green')
@@ -919,9 +920,55 @@ def asbode(f, plot=1):
 
 
 def roots(poly):
-    poly = sp.parse_expr(poly.replace("^", "**").replace("=0", ""))
+    poly = sp.parse_expr(poly.replace("^", "**").replace("=0", "").replace("j","I").replace("i","I"))
     raices = solve(poly)
-    print("Raíces:")
+    print("Polinomio:", str(simplify(poly)).replace("**", "^").replace("I","j"))
+    print("\nRaíces:")
     for r in raices:
         # si es una raíz real
-        print(r.evalf(3))
+        if r.is_real:
+            print(" s=", r.evalf())
+        else:
+            print(" s=", str(complex(r)))
+
+
+def tf_to_text(tf):
+    def n2str(i):
+        if i == int(i):
+            return "{:d}".format(int(i))
+        else:
+            return "{:.3}".format(float(i))
+
+    def do(polynomial):
+        text_string = ""
+        if len(polynomial) > 1: text_string = "("
+        expo = len(polynomial) - 1
+        for i in polynomial:
+            if i == 0:
+                pass
+            elif i == 1 and expo == 1:
+                text_string = text_string + "s"
+            elif expo == 1:
+                text_string = text_string + n2str(i) + "*s"
+            elif i == 1 and expo > 1:
+                text_string = text_string + "s^" + n2str(expo)
+            elif i > 0 and expo == 0:
+                text_string = text_string + n2str(i)
+            else:
+                text_string = text_string + n2str(i) + "*s^" + n2str(expo)
+            expo = expo - 1
+            if i > 0: text_string = text_string + "+"
+        text_string = text_string[0:-1]
+        if len(polynomial) > 1: text_string += ")"
+        return text_string
+
+    if isinstance(tf, numbers.Number):
+        return str(tf)
+
+    num = do(tf.num[0][0])
+    den = do(tf.den[0][0])
+
+    if den != "1":
+        return "" + num + "/" + den
+    else:
+        return num
