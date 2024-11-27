@@ -668,7 +668,7 @@ def print_table(module, m_important_freq):
 
 
 # f="27*(s+3)/(s+1)/(s+20)/s"
-def asbode(f, plot=1):
+def asbode(f, **kwargs):
     fdt = text_to_tf(f)
 
     zeros = [-z.real for z in fdt.zeros()]
@@ -763,9 +763,11 @@ def asbode(f, plot=1):
     res.m = [sum(i) for i in zip(*all)]
     module.append(res)
 
-    print("TABLA de GANANCIAS\n")
+    verbose = kwargs.get('tables', False)
 
-    print_table(module, m_important_freq)
+    verbose and print("TABLA de GANANCIAS\n")
+
+    verbose and print_table(module, m_important_freq)
 
     phase = []
 
@@ -813,16 +815,16 @@ def asbode(f, plot=1):
     res.m = [sum(i) for i in zip(*all)]
     phase.append(res)
 
-    print("TABLA de FASE\n")
+    verbose and print("TABLA de FASE\n")
 
-    print_table(phase, p_important_freq)
+    verbose and print_table(phase, p_important_freq)
 
     gain = 20 * math.log10(dc_gain_any_type(fdt))
     resm = [sum(i) + gain for i in zip(*mallv)]
     resp = [sum(i) for i in zip(*allv)]
 
-    print("GANANCIA INICIAL: {:.4g} dB".format(resm[0]))
-    print("FASE INICIAL    : {:.4g} grados\n".format(resp[0]))
+    verbose and print("GANANCIA INICIAL: {:.4g} dB".format(resm[0]))
+    verbose and print("FASE INICIAL    : {:.4g} grados\n".format(resp[0]))
 
     num_crosses = 0
     for i in range(len(resm) - 1):
@@ -846,80 +848,154 @@ def asbode(f, plot=1):
                 fase = (resp[i + 1] - resp[i]) * math.log10(wc / p_important_freq[i]) / math.log10(
                     p_important_freq[i + 1] / p_important_freq[i]) + resp[i]
                 # print("Wc = {} Crece entre {} y {} fase {}".format(wc, p_important_freq[i], p_important_freq[i+1],fase))
-                print("\nFREQUENCIA CRITICA wc={:-4g} rad/s".format(wc))
-                print("MÁRGEN de FASE Mf={:-4g} grados".format(fase + 180))
+                verbose and print("\nFREQUENCIA CRITICA wc={:-4g} rad/s".format(wc))
+                verbose and print("MÁRGEN de FASE Mf={:-4g} grados".format(fase + 180))
     else:
-        print("\nMÚLTIPLES CRUCES con 0dB")
-    if plot > 0:
+        verbose and print("\nMÚLTIPLES CRUCES con 0dB")
+
+    if kwargs.get('bode', False) or kwargs.get('asymp', False):
         plt.figure()
         w = np.logspace(min_pwr, max_pwr, 1000)
-        co.bode_plot(fdt, w, dB=True)
+
+        margins = kwargs.get("margins")
+        if kwargs.get("only") is not None:
+            plp = kwargs.get("only") == "phase"
+            plm = kwargs.get("only") == "mag"
+        else:
+            plp, plm = True, True
+
+
+        co.bode_plot(fdt, w, dB=True, omega_limits=(10**min_pwr, 10**max_pwr), display_margins=margins, plot_magnitude=plm, plot_phase=plp)
         mag, phase, omega = co.frequency_response(fdt, w)
 
-        ax1, ax2 = plt.gcf().axes  # get subplot axes
-        lines1 = ax1.get_lines()
-        lines2 = ax2.get_lines()
+        if plp and plm:
+            ax1, ax2 = plt.gcf().get_axes()  # get subplot axes
+            lines1 = ax1.get_lines()
+            lines2 = ax2.get_lines()
 
-        if fase is not None and plot & 4:
-            if fase + 180 > 0:
+        elif plm:
+            ax1 = plt.gcf().get_axes()[0]
+            lines1 = ax1.get_lines()
+        elif plp:
+            ax2 = plt.gcf().get_axes()[0]
+            lines2 = ax2.get_lines()
+
+
+        if plm:
+            ylim = ax1.get_ylim()
+            ylim_max = ylim[1] if kwargs.get("mmax", None) is None else kwargs.get("mmax", 0)
+            ylim_min = ylim[0] if kwargs.get("mmin", None) is None else kwargs.get("mmin", 0)
+            ul = math.ceil(ylim_max / 20.0) * 20
+            ll = math.floor(ylim_min / 20.0) * 20
+            ax1.set_ylim(ll, ul)
+            ax1.set_yticks(np.arange(ll, ul+1, 20))
+            ax1.yaxis.grid(which="minor", visible=False)
+            ax1.yaxis.set_minor_locator(plt.MultipleLocator(10))  # Minor ticks for phase
+
+            if kwargs.get("noy1ticks", False):
+                ax1.set_yticklabels([])
+
+            if not kwargs.get('bode', False) or kwargs.get('exclude') == 'mag':
+                lines1[0].set_visible(False)
+
+            if kwargs.get("asymp") and not kwargs.get('exclude') == 'mag':
                 plt.sca(ax1)
-                plt.scatter(wc, 0, color='green')
+                plt.plot(m_important_freq, resm, 'k')
 
-            else:
+            if kwargs.get("margins") is not None:
+                ax1.yaxis.grid(which="major", visible=True)
+                ax1.xaxis.grid(which="minor", visible=True)
+
+            ax1.set_ylabel(kwargs.get('ylabel1', ''))
+
+        if plp:
+            ylim = ax2.get_ylim()
+            ylim_max = ylim[1] if kwargs.get("pmax", None) is None else kwargs.get("mmax", 0)
+            ylim_min = ylim[0] if kwargs.get("pmin", None) is None else kwargs.get("mmin", 0)
+            ul = math.ceil(ylim_max / 45.0) * 45
+            ll = math.floor(ylim_min / 45.0) * 45
+            ax2.set_ylim(ll, ul)
+            ax2.set_yticks(np.arange(ll, ul+1, 45))
+            ax2.yaxis.grid(which="minor", visible=False)
+            ax2.yaxis.set_minor_locator(plt.MultipleLocator(15))  # Minor ticks for phase
+
+            if kwargs.get("noxticks", False):
+                ax2.set_xticklabels([])
+
+            if kwargs.get("noy2ticks", False):
+                ax2.set_yticklabels([])
+
+            if not kwargs.get('bode', False) or kwargs.get('exclude') == 'phase':
+                lines2[0].set_visible(False)
+
+            if kwargs.get("asymp") and not kwargs.get('exclude') == 'phase':
                 plt.sca(ax2)
-                plt.scatter(wc, 0, color='red')
+                plt.plot(p_important_freq, resp, 'k')
 
-        if plot & 2:
-            lines1[0].set_visible(False)
-            lines2[0].set_visible(False)
+            if kwargs.get("margins") is not None:
+                ax2.yaxis.grid(which="major", visible=True)
+                ax2.xaxis.grid(which="minor", visible=True)
 
-        plt.sca(ax1)
-        plt.plot(m_important_freq, resm, 'k')
 
-        if plot & 4:
-            plt.scatter(m_important_freq, resm)
+            ax2.set_xlabel(kwargs.get('xlabel', ''))
+            ax2.set_ylabel(kwargs.get('ylabel2', ''))
 
-        plt.sca(ax2)
-        plt.plot(p_important_freq, resp, 'k')
+        plt.gcf().suptitle(kwargs.get('title', ''))
 
-        if fase is not None and plot & 4:
-            if fase + 180 > 0:
-                plt.plot([wc, wc], [-180, fase], color='green')
-            else:
-                plt.plot([wc, wc], [-180, fase], color='red')
+        if kwargs.get('save', False):
+            plt.savefig(kwargs.get('save'))
 
-        if plot & 4:
-            plt.scatter(p_important_freq, resp)
+        if not kwargs.get("batch"):
+            plt.show()
 
-        ymin = 1e6
-        idx = -1
-        # print(mag,omega)
-        for i in range(len(mag)):
-            mag_db = math.fabs(20 * math.log10(mag[i]))
-            if mag_db < ymin:
-                ymin = mag_db
-                idx = i
-        # if idx >=0:
-        #    print("FRECUENCIA de CRÍTICA: {:.4g} rad/s, Mf: {:.4g} grados".format(omega[idx], 180+180*phase[idx]/math.pi))
-        # else:
-        #    print("NO HAY FRECUENCIA de CORTE")
+            # if fase is not None and plot & 4:
+        #     if fase + 180 > 0:
+        #         plt.sca(ax1)
+        #         plt.scatter(wc, 0, color='green')
+        #
+        #     else:
+        #         plt.sca(ax2)
+        #         plt.scatter(wc, 0, color='red')
 
-        maxp = np.amax(resp)
-        minp = np.amin(resp)
+        # if fase is not None and kwargs.get('margins', False):
+        #     if fase + 180 > 0:
+        #         plt.plot([wc, wc], [-180, fase], color='green')
+        #     else:
+        #         plt.plot([wc, wc], [-180, fase], color='red')
+        #
+        # if kwargs.get('scatter', False):
+        #     plt.scatter(p_important_freq, resp)
+        #     plt.scatter(m_important_freq, resm)
 
-        maxp = int(math.ceil(maxp / 45) * 45)
-        minp = int(math.floor(minp / 45) * 45)
-        ax2.yaxis.set_ticks([])
-        ax2.yaxis.set_ticks(np.arange(minp, maxp + 0.1, 45))
+        # ymin = 1e6
+        # idx = -1
+        # # print(mag,omega)
+        # for i in range(len(mag)):
+        #     mag_db = math.fabs(20 * math.log10(mag[i]))
+        #     if mag_db < ymin:
+        #         ymin = mag_db
+        #         idx = i
+        # # if idx >=0:
+        # #    print("FRECUENCIA de CRÍTICA: {:.4g} rad/s, Mf: {:.4g} grados".format(omega[idx], 180+180*phase[idx]/math.pi))
+        # # else:
+        # #    print("NO HAY FRECUENCIA de CORTE")
+        #
+        # maxp = np.amax(resp)
+        # minp = np.amin(resp)
+        #
+        # maxp = int(math.ceil(maxp / 45) * 45)
+        # minp = int(math.floor(minp / 45) * 45)
+        # #ax2.yaxis.set_ticks([])
+        # #ax2.yaxis.set_ticks(np.arange(minp, maxp + 0.1, 45))
+        #
+        # maxm = np.amax(resm)
+        # minm = np.amin(resm)
+        # maxm = math.ceil(maxm / 20) * 20
+        # minm = math.floor(minm / 20) * 20
+        #
+        # #ax1.yaxis.set_ticks(np.arange(minm, maxm + 0.1, 20))
 
-        maxm = np.amax(resm)
-        minm = np.amin(resm)
-        maxm = math.ceil(maxm / 20) * 20
-        minm = math.floor(minm / 20) * 20
 
-        ax1.yaxis.set_ticks(np.arange(minm, maxm + 0.1, 20))
-
-        plt.show(block=blocking)
 
 
 def roots(poly):
