@@ -3,6 +3,8 @@
 import sys
 import numbers
 
+
+
 import numpy as np
 from matplotlib import pyplot as plt
 import control as co
@@ -10,10 +12,11 @@ import sympy as sp
 import math
 from sympy import *
 import builtins as __builtin__
-
 verbose = True
 blocking = True
 
+import matplotlib
+matplotlib.use('TkAgg')
 
 def set_verbose(val):
     global verbose
@@ -282,8 +285,8 @@ def compute_controller(planta, s_star, cero=None):
     den = [float(den)] if den.is_Number else [float(x) for x in sp.poly(den).all_coeffs()]
 
     tf_ctrl = co.tf(num, den)
-    poles = co.pole(tf_ctrl)
-    zeros = co.zero(tf_ctrl)
+    poles = co.poles(tf_ctrl)
+    zeros = co.zeros(tf_ctrl)
     mu = co.dcgain(tf_ctrl)
 
     for i in poles:
@@ -405,8 +408,8 @@ def step_response(fdt, verb=True):
 
 def root_locus_angles(fdt):
     tf_ctrl = text_to_tf(fdt)
-    poles = co.pole(tf_ctrl)
-    zeros = co.zero(tf_ctrl)
+    poles = co.poles(tf_ctrl)
+    zeros = co.zeros(tf_ctrl)
     there_are_angles = False
     for p in poles:
         if p.imag != 0:
@@ -576,7 +579,7 @@ def root_locus(fdt, limit=0, asynt=None):
         else:
             current_row = current_row + 1
 
-    rows = co.pole(tf_ctrl)
+    rows = co.poles(tf_ctrl)
     real_part = []
     imag_part = []
     for pol in rows:
@@ -584,7 +587,7 @@ def root_locus(fdt, limit=0, asynt=None):
         real_part.append(pol.real)
         imag_part.append(pol.imag)
 
-    rows = co.zero(tf_ctrl)
+    rows = co.zeros(tf_ctrl)
     for zer in rows:
         plt.scatter(zer.real, zer.imag, marker="o", color='green', facecolors='none')
 
@@ -668,8 +671,8 @@ def print_table(module, m_important_freq):
 def asbode(f, plot=1):
     fdt = text_to_tf(f)
 
-    zeros = [-z.real for z in fdt.zero()]
-    poles = [-p.real for p in fdt.pole()]
+    zeros = [-z.real for z in fdt.zeros()]
+    poles = [-p.real for p in fdt.poles()]
 
     zeros.sort()
     poles.sort()
@@ -850,7 +853,8 @@ def asbode(f, plot=1):
     if plot > 0:
         plt.figure()
         w = np.logspace(min_pwr, max_pwr, 1000)
-        mag, phase, omega = co.bode(fdt, w, dB=True)
+        co.bode_plot(fdt, w, dB=True)
+        mag, phase, omega = co.frequency_response(fdt, w)
 
         ax1, ax2 = plt.gcf().axes  # get subplot axes
         lines1 = ax1.get_lines()
