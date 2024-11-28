@@ -442,8 +442,13 @@ def dc_gain_any_type(fdt):
     den = fdt.den[0][0]
 
     fdt_type = 0
+
+    while num[len(num) - 1] == 0:
+        num = num[0:-1]
+
     while den[len(den) - 1] == 0:
         den = den[0:-1]
+
     gain = num[len(num) - 1] / den[len(den) - 1]
     return gain
 
@@ -659,7 +664,7 @@ def print_table(module, m_important_freq):
             print("\nSuma   ", end="")
         print("       ", end="")
         for j in i.m[:-1]:
-            print("|  {:3g}    ".format(j), end="")
+            print("|  {:4g}   ".format(j), end="")
         print("|")
     print("")
 
@@ -680,8 +685,13 @@ def asbode(f, **kwargs):
     sing = [z for z in zeros if z != 0] + [p for p in poles if p != 0]
     sing.sort()
 
-    min = sing[0] / 10
-    max = sing[-1] * 10
+    if len(sing) > 0:
+        min = sing[0] / 10
+        max = sing[-1] * 10
+    else:
+        min = 0.1
+        max = 100
+
     max_pwr = None
     min_pwr = None
 
@@ -707,22 +717,23 @@ def asbode(f, **kwargs):
     m_important_freq = [min, max]
     p_important_freq = [min, max]
 
-    for i in zeros:
-        if i != 0:
-            m_important_freq.append(i)
-            p_important_freq.append(i / 10)
-            p_important_freq.append(i * 10)
+    for z in zeros:
+        if z != 0:
+            m_important_freq.append(z)
+            p_important_freq.append(z / 10)
+            p_important_freq.append(z * 10)
 
-    for i in poles:
-        if i != 0:
-            m_important_freq.append(i)
-            p_important_freq.append(i / 10)
-            p_important_freq.append(i * 10)
+    for p in poles:
+        if p != 0:
+            m_important_freq.append(p)
+            p_important_freq.append(p / 10)
+            p_important_freq.append(p * 10)
 
     m_important_freq = list(set(m_important_freq))
     p_important_freq = list(set(p_important_freq))
     m_important_freq.sort()
     p_important_freq.sort()
+
 
     all = []
     mallv = []
@@ -739,6 +750,7 @@ def asbode(f, **kwargs):
             else:
                 p.append_m(0)
                 p.append_v(0)
+
         module.append(p)
         all.append(p.m)
         mallv.append(p.v)
@@ -747,8 +759,8 @@ def asbode(f, **kwargs):
         z = Singularity(1, cut)
         for freq in m_important_freq:
             if cut == 0:
-                p.append_m(-20)
-                p.append_v(20 * math.log10(freq))
+                z.append_m(20)
+                z.append_v(20 * math.log10(freq))
             elif freq >= cut:
                 z.append_m(20)
                 z.append_v(20 * math.log10(freq / cut))
@@ -823,8 +835,8 @@ def asbode(f, **kwargs):
     resm = [sum(i) + gain for i in zip(*mallv)]
     resp = [sum(i) for i in zip(*allv)]
 
-    verbose and print("GANANCIA INICIAL: {:.4g} dB".format(resm[0]))
-    verbose and print("FASE INICIAL    : {:.4g} grados\n".format(resp[0]))
+    verbose and print("Ganancia inicial          : {:.4g} dB".format(resm[0]))
+    verbose and print("Fase inicial              : {:.4g} grados".format(resp[0]))
 
     num_crosses = 0
     for i in range(len(resm) - 1):
@@ -847,11 +859,17 @@ def asbode(f, **kwargs):
             elif wc > p_important_freq[i] and wc < p_important_freq[i + 1]:
                 fase = (resp[i + 1] - resp[i]) * math.log10(wc / p_important_freq[i]) / math.log10(
                     p_important_freq[i + 1] / p_important_freq[i]) + resp[i]
-                # print("Wc = {} Crece entre {} y {} fase {}".format(wc, p_important_freq[i], p_important_freq[i+1],fase))
-                verbose and print("\nFREQUENCIA CRITICA wc={:-4g} rad/s".format(wc))
-                verbose and print("MÁRGEN de FASE Mf={:-4g} grados".format(fase + 180))
+
+                #verbose and print("Margen de fase (asymp): {:-4g} grados a {:-4g} rad/s".format(fase + 180, wc))
     else:
         verbose and print("\nMÚLTIPLES CRUCES con 0dB")
+
+    gain_margin, phase_margin, gain_freq, phase_freq = co.margin(fdt)
+    if not math.isinf(gain_margin):
+        verbose and print("Margen de ganancia (bode) : {:.4g} dB a {:.4g} rad/s".format(20*math.log10(gain_margin), gain_freq))
+
+    if not math.isinf(phase_margin):
+        verbose and print("Margen de fase (bode)     : {:.4g}º   a {:.4g} rad/s".format(phase_margin, phase_freq))
 
     if kwargs.get('bode', False) or kwargs.get('asymp', False):
         plt.figure()
@@ -865,23 +883,33 @@ def asbode(f, **kwargs):
             plp, plm = True, True
 
 
-        co.bode_plot(fdt, w, dB=True, omega_limits=(10**min_pwr, 10**max_pwr), display_margins=margins, plot_magnitude=plm, plot_phase=plp)
-        mag, phase, omega = co.frequency_response(fdt, w)
 
-        if plp and plm:
-            ax1, ax2 = plt.gcf().get_axes()  # get subplot axes
-            lines1 = ax1.get_lines()
-            lines2 = ax2.get_lines()
+        #co.bode_plot(fdt, w, dB=True, omega_limits=(10**min_pwr, 10**max_pwr), display_margins=margins, plot_magnitude=plm, plot_phase=plp)
+        #plt.show()
 
-        elif plm:
-            ax1 = plt.gcf().get_axes()[0]
-            lines1 = ax1.get_lines()
-        elif plp:
-            ax2 = plt.gcf().get_axes()[0]
-            lines2 = ax2.get_lines()
+        mag, phase, omega = co.frequency_response(fdt, w, )
+        phase =  np.unwrap(phase)
+        #plt.figure()
+
+        # Plot magnitude
+        plt.subplot(2, 1, 1)  # 2 rows, 1 column, first subplot
+        plt.semilogx(omega, 20 * np.log10(mag))  # Convert magnitude to dB
+        plt.grid(True)
+
+        # Plot phase
+        plt.subplot(2, 1, 2)  # 2 rows, 1 column, second subplot
+        plt.semilogx(omega, phase*180/math.pi)  # Phase in degrees
+        plt.grid(True)
+
+        plt.tight_layout()  # Adjusts layout so plots don't overlap
 
 
         if plm:
+            ax1 = plt.gcf().get_axes()[0]
+            ax1.set_xlim(10 ** min_pwr, 10 ** max_pwr)
+            lines1 = ax1.get_lines()
+            ax1.yaxis.grid(which="major", visible=True)
+            ax1.xaxis.grid(which="minor", visible=True)
             ylim = ax1.get_ylim()
             ylim_max = ylim[1] if kwargs.get("mmax", None) is None else kwargs.get("mmax", 0)
             ylim_min = ylim[0] if kwargs.get("mmin", None) is None else kwargs.get("mmin", 0)
@@ -902,16 +930,26 @@ def asbode(f, **kwargs):
                 plt.sca(ax1)
                 plt.plot(m_important_freq, resm, 'k')
 
-            if kwargs.get("margins") is not None:
-                ax1.yaxis.grid(which="major", visible=True)
-                ax1.xaxis.grid(which="minor", visible=True)
-
             ax1.set_ylabel(kwargs.get('ylabel1', ''))
+            if plp:
+                ax1.set_xticklabels([])
+                plt.subplots_adjust(hspace=0.1)  # Reduce vertical space (default is 0.3)
+
+            if kwargs.get("margins"):
+                if not math.isinf(gain_margin):
+                    plt.sca(ax1)
+                    plt.plot([gain_freq, gain_freq], [0, -20*math.log10(gain_margin)], color='green' if gain_margin > 0 else 'red')
 
         if plp:
+            ax2 = plt.gcf().get_axes()[1]
+            ax2.set_xlim(10 ** min_pwr, 10 ** max_pwr)
+            lines2 = ax2.get_lines()
+            ax2.yaxis.grid(which="major", visible=True)
+            ax2.xaxis.grid(which="minor", visible=True)
+
             ylim = ax2.get_ylim()
-            ylim_max = ylim[1] if kwargs.get("pmax", None) is None else kwargs.get("mmax", 0)
-            ylim_min = ylim[0] if kwargs.get("pmin", None) is None else kwargs.get("mmin", 0)
+            ylim_max = ylim[1] if kwargs.get("pmax", None) is None else kwargs.get("pmax", 0)
+            ylim_min = ylim[0] if kwargs.get("pmin", None) is None else kwargs.get("pmin", 0)
             ul = math.ceil(ylim_max / 45.0) * 45
             ll = math.floor(ylim_min / 45.0) * 45
             ax2.set_ylim(ll, ul)
@@ -932,10 +970,10 @@ def asbode(f, **kwargs):
                 plt.sca(ax2)
                 plt.plot(p_important_freq, resp, 'k')
 
-            if kwargs.get("margins") is not None:
-                ax2.yaxis.grid(which="major", visible=True)
-                ax2.xaxis.grid(which="minor", visible=True)
-
+            if kwargs.get("margins"):
+                if not math.isinf(phase_margin):
+                    plt.sca(ax2)
+                    plt.plot([phase_freq, phase_freq], [-180, -180 + phase_margin], color='green' if phase_margin > 0 else 'red')
 
             ax2.set_xlabel(kwargs.get('xlabel', ''))
             ax2.set_ylabel(kwargs.get('ylabel2', ''))
@@ -947,56 +985,6 @@ def asbode(f, **kwargs):
 
         if not kwargs.get("batch"):
             plt.show()
-
-            # if fase is not None and plot & 4:
-        #     if fase + 180 > 0:
-        #         plt.sca(ax1)
-        #         plt.scatter(wc, 0, color='green')
-        #
-        #     else:
-        #         plt.sca(ax2)
-        #         plt.scatter(wc, 0, color='red')
-
-        # if fase is not None and kwargs.get('margins', False):
-        #     if fase + 180 > 0:
-        #         plt.plot([wc, wc], [-180, fase], color='green')
-        #     else:
-        #         plt.plot([wc, wc], [-180, fase], color='red')
-        #
-        # if kwargs.get('scatter', False):
-        #     plt.scatter(p_important_freq, resp)
-        #     plt.scatter(m_important_freq, resm)
-
-        # ymin = 1e6
-        # idx = -1
-        # # print(mag,omega)
-        # for i in range(len(mag)):
-        #     mag_db = math.fabs(20 * math.log10(mag[i]))
-        #     if mag_db < ymin:
-        #         ymin = mag_db
-        #         idx = i
-        # # if idx >=0:
-        # #    print("FRECUENCIA de CRÍTICA: {:.4g} rad/s, Mf: {:.4g} grados".format(omega[idx], 180+180*phase[idx]/math.pi))
-        # # else:
-        # #    print("NO HAY FRECUENCIA de CORTE")
-        #
-        # maxp = np.amax(resp)
-        # minp = np.amin(resp)
-        #
-        # maxp = int(math.ceil(maxp / 45) * 45)
-        # minp = int(math.floor(minp / 45) * 45)
-        # #ax2.yaxis.set_ticks([])
-        # #ax2.yaxis.set_ticks(np.arange(minp, maxp + 0.1, 45))
-        #
-        # maxm = np.amax(resm)
-        # minm = np.amin(resm)
-        # maxm = math.ceil(maxm / 20) * 20
-        # minm = math.floor(minm / 20) * 20
-        #
-        # #ax1.yaxis.set_ticks(np.arange(minm, maxm + 0.1, 20))
-
-
-
 
 def roots(poly):
     poly = sp.parse_expr(poly.replace("^", "**").replace("=0", "").replace("j","I").replace("i","I"))
